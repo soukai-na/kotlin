@@ -124,8 +124,12 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
                 is IrSimpleFunction -> {
                     val p = declaration.correspondingPropertySymbol?.let { composeSignatureForDeclaration(it.owner) }
                         ?: composeContainerIdSignature(declaration.parent)
-                    IdSignature.FileLocalSignature(p, ++localIndex)
+                    IdSignature.FileLocalSignature(p, mangler.run { declaration.signatureMangle })
                 }
+                is IrProperty -> IdSignature.FileLocalSignature(
+                    composeContainerIdSignature(declaration.parent),
+                    mangler.run { declaration.signatureMangle }
+                )
                 else -> IdSignature.FileLocalSignature(composeContainerIdSignature(declaration.parent), ++localIndex)
             }
         }

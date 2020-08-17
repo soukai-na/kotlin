@@ -122,14 +122,31 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
                     IdSignature.FileLocalSignature(p, ++localIndex)
                 }
                 is IrSimpleFunction -> {
+                    val parent = declaration.parent
                     val p = declaration.correspondingPropertySymbol?.let { composeSignatureForDeclaration(it.owner) }
-                        ?: composeContainerIdSignature(declaration.parent)
-                    IdSignature.FileLocalSignature(p, mangler.run { declaration.signatureMangle })
+                        ?: composeContainerIdSignature(parent)
+                    IdSignature.FileLocalSignature(
+                        p,
+                        if (parent is IrClass && parent.declarations.contains(declaration)) {
+                            mangler.run { declaration.signatureMangle }.also {
+                                println("HASH: $it in ${declaration.parent.render()}\n\t${declaration.render()}")
+                            }
+                        } else {
+                            ++localIndex
+                        }
+                    )
                 }
-                is IrProperty -> IdSignature.FileLocalSignature(
-                    composeContainerIdSignature(declaration.parent),
-                    mangler.run { declaration.signatureMangle }
-                )
+                is IrProperty -> {
+                    val parent = declaration.parent
+                    IdSignature.FileLocalSignature(
+                        composeContainerIdSignature(parent),
+                        if (parent is IrClass && parent.declarations.contains(declaration)) {
+                            mangler.run { declaration.signatureMangle }
+                        } else {
+                            ++localIndex
+                        }
+                    )
+                }
                 else -> IdSignature.FileLocalSignature(composeContainerIdSignature(declaration.parent), ++localIndex)
             }
         }

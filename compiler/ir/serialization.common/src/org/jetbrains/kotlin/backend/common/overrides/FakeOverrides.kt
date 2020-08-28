@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.common.overrides
 
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.descriptors.WrappedPropertyDescriptor
@@ -94,7 +95,7 @@ class FakeOverrideBuilder(
 
     fun buildFakeOverrideChainsForClass(clazz: IrClass) {
         if (haveFakeOverrides.contains(clazz)) return
-        if (!platformSpecificClassFilter.constructFakeOverrides(clazz) || !clazz.symbol.isPublicApi) return
+        if (!platformSpecificClassFilter.constructFakeOverrides(clazz)/* || !clazz.symbol.isPublicApi*/) return
 
         val superTypes = clazz.superTypes
 
@@ -119,7 +120,11 @@ class FakeOverrideBuilder(
     }
 
     private fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunction) {
-        val signature = signaturer.composePublicIdSignature(declaration)
+        val signature = if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrFunction).visibility == Visibilities.PRIVATE)) {
+            signaturer.composePublicIdSignature(declaration)
+        } else {
+            signaturer.composeFileLocalIdSignature(declaration)
+        }
 
         symbolTable.declareSimpleFunctionFromLinker(WrappedSimpleFunctionDescriptor(), signature) {
             declaration.acquireSymbol(it)
@@ -143,7 +148,11 @@ class FakeOverrideBuilder(
             it.correspondingPropertySymbol = tempSymbol
         }
 
-        val signature = signaturer.composePublicIdSignature(declaration)
+        val signature = if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrProperty).visibility == Visibilities.PRIVATE)) {
+            signaturer.composePublicIdSignature(declaration)
+        } else {
+            signaturer.composeFileLocalIdSignature(declaration)
+        }
 
         symbolTable.declarePropertyFromLinker(WrappedPropertyDescriptor(), signature) {
             declaration.acquireSymbol(it)

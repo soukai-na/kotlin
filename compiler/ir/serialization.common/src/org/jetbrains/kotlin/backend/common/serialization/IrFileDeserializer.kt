@@ -1052,9 +1052,9 @@ abstract class IrFileDeserializer(
                 (descriptor as? WrappedClassDescriptor)?.bind(this)
 
                 if (!deserializeFakeOverrides) {
-                    if (symbol.isPublicApi) {
+                    //if (symbol.isPublicApi) {
                         fakeOverrideQueue.add(this)
-                    }
+                    //}
                 }
             }
         }
@@ -1430,8 +1430,8 @@ abstract class IrFileDeserializer(
             // Don't consider IR_FIELDS here.
             else -> return false
         }
-        if (symbol !is IrPublicSymbolBase<*>) return false
-        if (!symbol.signature.isPublic) return false
+        //if (symbol !is IrPublicSymbolBase<*>) return false
+        //if (!symbol.signature.isPublic) return false
 
         return when (proto.declaratorCase!!) {
             IR_FUNCTION -> FunctionFlags.decode(proto.irFunction.base.base.flags).isFakeOverride

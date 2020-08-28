@@ -30,7 +30,11 @@ class JsIrLinker(
     deserializeFakeOverrides: Boolean = FakeOverrideControl.deserializeFakeOverrides
 ) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, emptyList(), deserializeFakeOverrides) {
 
-    override val fakeOverrideBuilder = FakeOverrideBuilder(symbolTable, IdSignatureSerializer(JsManglerIr), builtIns)
+    private val signaturer = IdSignatureSerializer(JsManglerIr)
+    private val globalDeclarationTable = JsGlobalDeclarationTable(signaturer, builtIns)
+    private val declarationTable = DeclarationTable(globalDeclarationTable)
+
+    override val fakeOverrideBuilder = FakeOverrideBuilder(symbolTable, signaturer, builtIns)
 
     override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean =
         moduleDescriptor === moduleDescriptor.builtIns.builtInsModule

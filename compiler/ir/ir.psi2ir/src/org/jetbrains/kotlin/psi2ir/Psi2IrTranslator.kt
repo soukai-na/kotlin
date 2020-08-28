@@ -90,7 +90,8 @@ class Psi2IrTranslator(
 
         deserializers.forEach { it.postProcess() }
         val allUnbound = context.symbolTable.allUnbound
-        assert(allUnbound.isEmpty()) { "Unbound symbols not allowed\n${allUnbound.joinToString("\n\t", "\t")}" }
+        context.symbolTable.noUnboundLeft("Unbound symbols not allowed\n")
+        //assert(allUnbound.isEmpty()) { "Unbound symbols not allowed\n${allUnbound.joinToString("\n\t", "\t")}" }
 
         postprocessingSteps.forEach { it.invoke(irModule) }
 //        assert(context.symbolTable.allUnbound.isEmpty()) // TODO: fix IrPluginContext to make it not produce additional external reference

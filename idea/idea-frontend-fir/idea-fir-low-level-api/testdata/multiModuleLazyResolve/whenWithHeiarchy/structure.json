@@ -4,5 +4,4 @@
     { "name": "dependency" }
   ],
   "fileToResolve": { "module": "main", "file": "main.kt" },
-  "fails": true
 }

@@ -13,14 +13,15 @@ import org.jetbrains.kotlin.fir.analysis.collectors.registerAllComponents
 import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnostic
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirPsiDiagnostic
-import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.createReturnTypeCalculatorForIDE
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.addValueFor
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.checkCanceled
 import org.jetbrains.kotlin.psi.KtElement
 
-internal class FirIdeDiagnosticsCollector private constructor(
+internal class FirIdeDiagnosticsCollector(
+    private val declaration: FirDeclaration,
     session: FirSession,
 ) : AbstractDiagnosticCollector(
     session,
@@ -28,9 +29,14 @@ internal class FirIdeDiagnosticsCollector private constructor(
 ) {
     private val result = mutableMapOf<KtElement, MutableList<Diagnostic>>()
 
+    val elementToDiagnostic: Map<KtElement, List<Diagnostic>> get() = result
+
     init {
         registerAllComponents()
     }
+
+    override fun needCollectingDiagnosticsForDeclaration(declaration: FirDeclaration) =
+        this.declaration == declaration
 
     private inner class Reporter : DiagnosticReporter() {
         override fun report(diagnostic: FirDiagnostic<*>?) {
@@ -59,15 +65,5 @@ internal class FirIdeDiagnosticsCollector private constructor(
 
     companion object {
         private val LOG = Logger.getInstance(FirIdeDiagnosticsCollector::class.java)
-
-        /**
-         * Collects diagnostics for given [firFile]
-         * Should be called under [firFile]-based lock
-         */
-        fun collect(firFile: FirFile): Map<KtElement, List<Diagnostic>> =
-            FirIdeDiagnosticsCollector(firFile.session).let { collector ->
-                collector.collectDiagnostics(firFile)
-                collector.result
-            }
     }
 }

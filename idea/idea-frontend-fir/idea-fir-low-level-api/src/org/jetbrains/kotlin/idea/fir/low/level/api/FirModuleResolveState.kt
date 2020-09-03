@@ -67,7 +67,7 @@ internal open class FirModuleResolveStateImpl(
 ) : FirModuleResolveState() {
     val psiToFirCache = PsiToFirCache(fileCache)
     val elementBuilder = FirElementBuilder(firFileBuilder, firLazyDeclarationResolver)
-    private val diagnosticsCollector = DiagnosticsCollector(firFileBuilder, fileCache)
+    private val diagnosticsCollector = DiagnosticsCollector(firFileBuilder, elementBuilder, psiToFirCache, fileCache)
 
     override fun getSessionFor(moduleInfo: IdeaModuleInfo): FirSession =
         sessionProvider.getSession(moduleInfo)

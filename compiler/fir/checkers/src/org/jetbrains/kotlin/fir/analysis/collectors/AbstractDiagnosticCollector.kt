@@ -52,6 +52,7 @@ abstract class AbstractDiagnosticCollector(
 
     @Suppress("LeakingThis")
     private var context = PersistentCheckerContext(this, returnTypeCalculator)
+    private var collectDiagnostics = true
 
     fun initializeComponents(vararg components: AbstractDiagnosticCollectorComponent) {
         if (componentsInitialized) {
@@ -69,13 +70,16 @@ abstract class AbstractDiagnosticCollector(
         }
 
         override fun visitElement(element: FirElement, data: Nothing?) {
-            element.runComponents()
+            if (collectDiagnostics) {
+                element.runComponents()
+            }
             element.acceptChildren(this, null)
         }
 
         private fun visitJump(loopJump: FirLoopJump) {
-            loopJump.runComponents()
-            loopJump.acceptChildren(this, null)
+            if (collectDiagnostics) {
+                loopJump.runComponents()
+            }
             loopJump.target.labeledElement.takeIf { it is FirErrorLoop }?.accept(this, null)
         }
 
@@ -158,25 +162,35 @@ abstract class AbstractDiagnosticCollector(
         }
 
         private fun visitWithDeclaration(declaration: FirDeclaration) {
-            declaration.runComponents()
-            withDeclaration(declaration) {
-                declaration.acceptChildren(this, null)
+            if (needCollectingDiagnosticsForDeclaration(declaration)) {
+                declaration.runComponents()
             }
-        }
-
-        private fun visitWithDeclarationAndReceiver(declaration: FirDeclaration, labelName: Name?, receiverTypeRef: FirTypeRef?) {
-            declaration.runComponents()
-            withDeclaration(declaration) {
-                withLabelAndReceiverType(
-                    labelName,
-                    declaration,
-                    receiverTypeRef?.coneTypeSafe()
-                ) {
+            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declaration)) {
+                withDeclaration(declaration) {
                     declaration.acceptChildren(this, null)
                 }
             }
         }
+
+        private fun visitWithDeclarationAndReceiver(declaration: FirDeclaration, labelName: Name?, receiverTypeRef: FirTypeRef?) {
+            if (needCollectingDiagnosticsForDeclaration(declaration)) {
+                declaration.runComponents()
+            }
+            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declaration)) {
+                withDeclaration(declaration) {
+                    withLabelAndReceiverType(
+                        labelName,
+                        declaration,
+                        receiverTypeRef?.coneTypeSafe()
+                    ) {
+                        declaration.acceptChildren(this, null)
+                    }
+                }
+            }
+        }
     }
+
+    protected open fun needCollectingDiagnosticsForDeclaration(declaration: FirDeclaration): Boolean = true
 
     private inline fun <R> withDeclaration(declaration: FirDeclaration, block: () -> R): R {
         val existingContext = context
@@ -206,6 +220,16 @@ abstract class AbstractDiagnosticCollector(
             return block()
         } finally {
             context = existingContext
+        }
+    }
+
+    private inline fun <R> withDiagnosticsCollection(collect: Boolean, block: () -> R): R {
+        val oldCollectDiagnostics = collectDiagnostics
+        collectDiagnostics = collect
+        return try {
+            block()
+        } finally {
+            collectDiagnostics = oldCollectDiagnostics
         }
     }
 }

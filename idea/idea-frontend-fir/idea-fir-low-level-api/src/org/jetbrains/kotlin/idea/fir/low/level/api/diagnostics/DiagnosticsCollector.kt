@@ -5,17 +5,26 @@
 
 package org.jetbrains.kotlin.idea.fir.low.level.api.diagnostics
 
+import org.jetbrains.kotlin.cfg.pseudocode.containingDeclarationForPseudocode
 import org.jetbrains.kotlin.diagnostics.Diagnostic
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.diagnostics.FirDiagnosticHolder
+import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.FirElementBuilder
+import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.PsiToFirCache
 import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.FirFileBuilder
 import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.ModuleFileCache
+import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import java.util.concurrent.ConcurrentHashMap
 
 internal class DiagnosticsCollector(
     private val firFileBuilder: FirFileBuilder,
+    private val elementBuilder: FirElementBuilder,
+    private val psiToFirCache: PsiToFirCache,
     private val cache: ModuleFileCache,
 ) {
     private val diagnosticsForFile = ConcurrentHashMap<KtFile, DiagnosticsForFile>()
@@ -23,31 +32,40 @@ internal class DiagnosticsCollector(
     fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
         val ktFile = element.containingKtFile
         val diagnostics = diagnosticsForFile.computeIfAbsent(ktFile) {
-            val firFile = firFileBuilder.getFirFileResolvedToPhaseWithCaching(
-                ktFile,
-                cache,
-                toPhase = FirResolvePhase.BODY_RESOLVE,
-                checkPCE = true
-            )
-            DiagnosticsForFile.collectDiagnosticsForFile(firFile)
+            val firFile = firFileBuilder.buildRawFirFileWithCaching(ktFile, cache)
+            DiagnosticsForFile(ktFile, firFile, elementBuilder, psiToFirCache, cache)
         }
         return diagnostics.getDiagnosticsFor(element)
     }
 }
 
-private class DiagnosticsForFile private constructor(private val diagnostics: Map<KtElement, List<Diagnostic>>) {
-    fun getDiagnosticsFor(element: KtElement): List<Diagnostic> = diagnostics[element].orEmpty()
+private class DiagnosticsForFile(
+    private val ktFile: KtFile,
+    private val firFile: FirFile,
+    private val elementBuilder: FirElementBuilder,
+    private val psiToFirCache: PsiToFirCache,
+    private val cache: ModuleFileCache,
+) {
+    private val declarationToDiagnostics = ConcurrentHashMap<KtAnnotated, Map<KtElement, List<Diagnostic>>>()
 
-    companion object {
-        /**
-         * Collects diagnostics for given [firFile]
-         * Should be called under [firFile]-based lock
-         */
-        fun collectDiagnosticsForFile(firFile: FirFile): DiagnosticsForFile {
-            require(firFile.resolvePhase >= FirResolvePhase.BODY_RESOLVE) {
-                "To collect diagnostics at least FirResolvePhase.BODY_RESOLVE is needed, but file ${firFile.name} was resolved to ${firFile.resolvePhase}"
+    fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
+        val containerDeclaration = element as? KtDeclaration
+            ?: element.containingDeclarationForPseudocode
+            ?: ktFile
+        return declarationToDiagnostics.computeIfAbsent(containerDeclaration) {
+            when (val fir = elementBuilder.getOrBuildFirFor(containerDeclaration, cache, psiToFirCache, FirResolvePhase.BODY_RESOLVE)) {
+                is FirDeclaration -> {
+                    FirIdeDiagnosticsCollector(fir, fir.session).let { collector ->
+                        collector.collectDiagnostics(firFile)
+                        collector.elementToDiagnostic
+                    }
+                }
+                is FirDiagnosticHolder -> {
+                    emptyMap() //TODO take diagnostic from FirDiagnosticHolder
+                }
+                else -> error("KtDeclaration should be mapped to FirDeclaration")
             }
-            return DiagnosticsForFile(FirIdeDiagnosticsCollector.collect(firFile))
-        }
+
+        }.getOrDefault(element, emptyList())
     }
 }

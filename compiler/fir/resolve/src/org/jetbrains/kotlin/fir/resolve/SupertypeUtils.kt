@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.typeContext
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.types.model.CaptureStatus
 
 abstract class SupertypeSupplier {
     abstract fun forClass(firClass: FirClass<*>): List<ConeClassLikeType>
@@ -69,15 +70,32 @@ fun createSubstitution(
 ): Map<FirTypeParameterSymbol, ConeKotlinType> {
     return typeParameters.zip(typeArguments) { typeParameter, typeArgument ->
         val typeParameterSymbol = typeParameter.symbol
-        typeParameterSymbol to when (typeArgument) {
-            is ConeKotlinTypeProjection -> {
+        typeParameterSymbol to when {
+            typeArgument is ConeKotlinType -> {
                 typeArgument.type
             }
-            else /* StarProjection */ -> {
+            typeArgument is ConeKotlinTypeProjectionIn /*&& typeParameterSymbol.fir.variance == Variance.IN_VARIANCE*/ -> {
+                typeArgument.type
+            }
+            typeArgument is ConeKotlinTypeProjectionOut /*&& typeParameterSymbol.fir.variance == Variance.OUT_VARIANCE*/ -> {
+                typeArgument.type
+            }
+            else /* StarProjection [or inconsistent typed projection?] */ -> {
                 val substitutorByStar = ConeSubstitutorByStar(typeParameterSymbol)
-                ConeTypeIntersector.intersectTypes(
+                val superTypes = typeParameterSymbol.fir.bounds.map { substitutorByStar.substituteType(it.coneType) ?: it.coneType }
+                val baseType = ConeTypeIntersector.intersectTypes(
                     session.typeContext,
-                    typeParameterSymbol.fir.bounds.map { substitutorByStar.substituteType(it.coneType) ?: it.coneType }
+                    superTypes
+                )
+
+                ConeCapturedType(
+                    CaptureStatus.FOR_SUBTYPING,
+                    lowerType = baseType,
+                    constructor = ConeCapturedTypeConstructor(
+                        typeArgument,
+                        superTypes,
+                        typeParameterMarker = typeParameterSymbol.toLookupTag()
+                    )
                 )
             }
         }

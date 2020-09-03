@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.fir.types
 
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.FirConstKind
 import org.jetbrains.kotlin.fir.symbols.StandardClassIds
@@ -73,6 +74,15 @@ val FirAnnotationCall.isExtensionFunctionAnnotationCall: Boolean
 fun List<FirAnnotationCall>.dropExtensionFunctionAnnotation(): List<FirAnnotationCall> {
     return filterNot { it.isExtensionFunctionAnnotationCall }
 }
+
+val FirAnnotationCall.isUnsafeVariance: Boolean
+    get() = (this as? FirAnnotationCall)?.let { annotationCall ->
+        (annotationCall.annotationTypeRef as? FirResolvedTypeRef)?.let { typeRef ->
+            (typeRef.type as? ConeClassLikeType)?.let {
+                it.lookupTag.classId.asSingleFqName() == StandardNames.FqNames.unsafeVariance
+            }
+        }
+    } == true
 
 fun ConeClassLikeType.toConstKind(): FirConstKind<*>? = when (lookupTag.classId) {
     StandardClassIds.Byte -> FirConstKind.Byte

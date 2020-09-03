@@ -46,6 +46,8 @@ abstract class IrModuleDeserializer(val moduleDescriptor: ModuleDescriptor) {
 
     open fun init() = init(this)
 
+    open fun postProcess() {}
+
     open fun init(delegate: IrModuleDeserializer) {}
 
     open fun addModuleReachableTopLevel(idSig: IdSignature) { error("Unsupported Operation (sig: $idSig") }
@@ -173,6 +175,10 @@ class IrModuleDeserializerWithBuiltIns(
 
     override fun init() {
         delegate.init(this)
+    }
+
+    override fun postProcess() {
+        delegate.postProcess()
     }
 
     override val klib: IrLibrary

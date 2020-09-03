@@ -110,6 +110,16 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
         return publicSignatureBuilder.buildSignature(declaration)
     }
 
+    private fun IrDeclaration.isMemberOrAccessor(): Boolean {
+        val parent = this.parent
+        if (parent !is IrClass) return false
+        if (parent.declarations.contains(this)) return true
+        (this as? IrSimpleFunction)?.correspondingPropertySymbol?.owner?.let {
+            if (parent.declarations.contains(it)) return true
+        }
+        return false
+    }
+
     fun composeFileLocalIdSignature(declaration: IrDeclaration): IdSignature {
         assert(!mangler.run { declaration.isExported() })
 
@@ -127,9 +137,9 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
                         ?: composeContainerIdSignature(parent)
                     IdSignature.FileLocalSignature(
                         p,
-                        if (parent is IrClass && parent.declarations.contains(declaration)) {
+                        if (declaration.isMemberOrAccessor()) {
                             mangler.run { declaration.signatureMangle }.also {
-                                println("HASH: ${it} in ${declaration.parent.render()}\n\t${declaration.render()}")
+                                //println("HASH: ${it} in ${declaration.parent.render()}\n\t${declaration.render()}")
                             }
                         } else {
                             ++localIndex
@@ -140,7 +150,7 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
                     val parent = declaration.parent
                     IdSignature.FileLocalSignature(
                         composeContainerIdSignature(parent),
-                        if (parent is IrClass && parent.declarations.contains(declaration)) {
+                        if (declaration.isMemberOrAccessor()) {
                             mangler.run { declaration.signatureMangle }
                         } else {
                             ++localIndex

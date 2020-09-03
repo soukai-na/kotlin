@@ -43,11 +43,6 @@ abstract class IrBindableCallableSymbolBase<out D : DeclarationDescriptor, B : I
     override fun bind(owner: B) {
         if (_owner == null) {
             _owner = owner
-            if ((owner as IrDeclarationWithName).name.toString() == "finalElement") {
-                println("binding finalElement")
-                println("The sym is ${this.javaClass.simpleName}@${this.hashCode()}")
-                Throwable().printStackTrace()
-            }
         } else {
             throw IllegalStateException("${javaClass.simpleName}@${hashCode()} for $signature is already bound: ${owner.render()}")
         }

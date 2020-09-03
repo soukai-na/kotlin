@@ -24,9 +24,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.descriptors.WrappedPropertyDescriptor
 import org.jetbrains.kotlin.ir.descriptors.WrappedSimpleFunctionDescriptor
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrPropertySymbolImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
@@ -98,7 +96,7 @@ class FakeOverrideBuilder(
         val deepCopyFakeOverride = copier.copy(member, clazz) as IrOverridableMember
         deepCopyFakeOverride.parent = clazz
 
-        println("CANDIDATE: ${deepCopyFakeOverride.render()}")
+        //println("CANDIDATE: ${deepCopyFakeOverride.render()}")
 
         return deepCopyFakeOverride
     }
@@ -106,8 +104,6 @@ class FakeOverrideBuilder(
     fun buildFakeOverrideChainsForClass(clazz: IrClass) {
         if (haveFakeOverrides.contains(clazz)) return
         if (!platformSpecificClassFilter.constructFakeOverrides(clazz)/* || !clazz.symbol.isPublicApi*/) return
-
-        println("FAKE OVERRIDES FOR "+ir2stringWhole(clazz))
 
         val superTypes = clazz.superTypes
 
@@ -132,27 +128,25 @@ class FakeOverrideBuilder(
     }
 
     private fun linkFunctionFakeOverride(declaration: IrFakeOverrideFunction) {
+        //println("parent is public?: ${(declaration.parent as IrClass).symbol.isPublicApi}")
+        //println((declaration.parent as IrClass).render())
+        //println("declaration visibility: ${(declaration as IrFunction).visibility}")
         val signature = if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrFunction).visibility == Visibilities.PRIVATE)) {
             signaturer.composePublicIdSignature(declaration)
         } else {
             signaturer.composeFileLocalIdSignature(declaration)
         }
-        println("LINKING ${declaration.nameForIrSerialization} in ${(declaration.parent as IrClass).name}\nsig = $signature")
-        if (signature.toString() == "private kotlinx.cinterop/|null[0]:3:4638265728071529943") {
-            symbolTable.allUnbound.forEach {
-                try {
-                    println("$it ${it.signature}")
-                } catch (e: Throwable) {
-                    println(it)
-                }
-            }
-        }
+        //println("LINKING ${declaration.nameForIrSerialization} in ${(declaration.parent as IrClass).name}\nsig = $signature")
+
         if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrFunction).visibility == Visibilities.PRIVATE)) {
             symbolTable.declareSimpleFunctionFromLinker(WrappedSimpleFunctionDescriptor(), signature) {
                 declaration.acquireSymbol(it)
             }
         } else {
-            localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.FUNCTION_SYMBOL)
+            val symbol = localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.FUNCTION_SYMBOL) as IrSimpleFunctionSymbol
+            symbolTable.declareSimpleFunctionFromLinker(symbol.descriptor, signature) {
+                declaration.acquireSymbol(symbol)
+            }
         }
     }
 
@@ -184,7 +178,10 @@ class FakeOverrideBuilder(
                 declaration.acquireSymbol(it)
             }
         } else {
-            localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.PROPERTY_SYMBOL)
+            val symbol = localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.PROPERTY_SYMBOL) as IrPropertySymbol
+            symbolTable.declarePropertyFromLinker(symbol.descriptor, signature) {
+                declaration.acquireSymbol(symbol)
+            }
         }
 
         declaration.getter?.let {

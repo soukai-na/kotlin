@@ -1059,7 +1059,7 @@ abstract class IrFileDeserializer(
                     //}
                 }
             }.also {
-                println("Deserializing CLASS: ${it.render()}")
+                //println("Deserializing CLASS: ${it.render()}")
             }
         }
 
@@ -1207,7 +1207,6 @@ abstract class IrFileDeserializer(
             }.apply {
                 overriddenSymbols = proto.overriddenList.map { deserializeIrSymbolAndRemap(it) as IrSimpleFunctionSymbol }
 
-                println("binding ${this.name} descriptor ${this.render()}" )
                 (descriptor as? WrappedSimpleFunctionDescriptor)?.bind(this)
             }
         }

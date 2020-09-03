@@ -132,8 +132,9 @@ abstract class KotlinIrLinker(
             fileToDeserializerMap.values.forEach { it.deserializeExpectActualMapping() }
         }
 
-        fun postProcess() {
+        override fun postProcess() {
             fileToDeserializerMap.values.forEach { fileDeserializer ->
+                //println("\tPOSTPROCESS: ${fileDeserializer.file.fileEntry.name}")
                 while (fileDeserializer.fakeOverrideClassQueue.isNotEmpty()) {
                     val klass = fileDeserializer.fakeOverrideClassQueue.removeLast()
                     fakeOverrideBuilder.provideFakeOverrides(klass, fileDeserializer as FileLocalLinker)
@@ -617,7 +618,8 @@ abstract class KotlinIrLinker(
     override fun postProcess() {
         finalizeExpectActualLinker()
 
-        deserializersForModules.keys.filterIsInstance<BasicIrModuleDeserializer>().forEach {
+        deserializersForModules.values.forEach {
+            //println("POSTPROCESS: ${it.moduleDescriptor}")
             it.postProcess()
         }
         //while (fakeOverrideClassQueue.isNotEmpty()) {

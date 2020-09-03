@@ -100,11 +100,14 @@ class IrOverridingUtil(
     fun buildFakeOverridesForClass(clazz: IrClass) {
         val superTypes = allPublicApiSuperTypesOrAny(clazz)
 
+        //println("FAKE OVERRIDES FOR "+clazz.render())
+
         @Suppress("UNCHECKED_CAST")
-        val fromCurrent = clazz.declarations.filter { it is IrOverridableMember && it.symbol.isPublicApi } as List<IrOverridableMember>
+        val fromCurrent = clazz.declarations.filter { it is IrOverridableMember /*&& it.symbol.isPublicApi*/ } as List<IrOverridableMember>
 
         val allFromSuper = superTypes.flatMap { superType ->
             val superClass = superType.getClass() ?: error("Unexpected super type: $superType")
+            //println("\tsuper class: ${superClass.name}")
             superClass.declarations
                 .filter { it is IrOverridableMember/* && it.symbol.isPublicApi */}
                 .map {
@@ -118,6 +121,8 @@ class IrOverridingUtil(
 
         val allFromSuperByName = allFromSuper.groupBy { it.name }
 
+        //println("\tallFromSuperByName = ${allFromSuperByName.keys.map{it.toString()}}")
+
         allFromSuperByName.forEach { group ->
             generateOverridesInFunctionGroup(
                 group.value,
@@ -125,6 +130,11 @@ class IrOverridingUtil(
                 clazz
             )
         }
+
+        //println("RESULT:")
+        //clazz.declarations.forEach {
+        //    println("\t\t${it.render()}")
+        //}
     }
 
     private fun generateOverridesInFunctionGroup(

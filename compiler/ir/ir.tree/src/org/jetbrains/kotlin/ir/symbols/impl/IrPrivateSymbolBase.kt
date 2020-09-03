@@ -65,7 +65,7 @@ abstract class IrBindableSymbolBase<out D : DeclarationDescriptor, B : IrSymbolO
         if (_owner == null) {
             _owner = owner
         } else {
-            throw IllegalStateException("${javaClass.simpleName} is already bound: ${owner.render()}")
+            throw IllegalStateException("${javaClass.simpleName} is already bound:\n\t${_owner!!.render()}, attempted: \n\t${owner.render()}")
         }
     }
 

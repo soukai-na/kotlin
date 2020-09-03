@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.common.serialization.signature
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.descriptors.WrappedDeclarationDescriptor
 import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.ir.util.IdSignatureComposer
@@ -110,7 +111,7 @@ open class IdSignatureDescriptor(private val mangler: KotlinMangler.DescriptorMa
 
     override fun composeSignature(descriptor: DeclarationDescriptor): IdSignature? {
         if (descriptor is WrappedDeclarationDescriptor<*>) return null
-        return if (mangler.run { descriptor.isExported() }) {
+        return if (mangler.run { descriptor.isExported() } || descriptor is IrSimpleFunction && descriptor.containingDeclaration is ClassDescriptor) {
             composer.buildSignature(descriptor)
         } else null
     }

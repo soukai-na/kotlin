@@ -106,7 +106,7 @@ class IrOverridingUtil(
         val allFromSuper = superTypes.flatMap { superType ->
             val superClass = superType.getClass() ?: error("Unexpected super type: $superType")
             superClass.declarations
-                .filter { it is IrOverridableMember && it.symbol.isPublicApi }
+                .filter { it is IrOverridableMember/* && it.symbol.isPublicApi */}
                 .map {
                     val overridenMember = it as IrOverridableMember
                     val fakeOverride = fakeOverrideBuilder.fakeOverrideMember(superType, overridenMember, clazz)
@@ -326,8 +326,8 @@ class IrOverridingUtil(
             fakeOverride.overriddenSymbols.isNotEmpty()
         ) { "Overridden symbols should be set for " + CallableMemberDescriptor.Kind.FAKE_OVERRIDE }
 
-        fakeOverrideBuilder.linkFakeOverride(fakeOverride)
         current.declarations.add(fakeOverride)
+        fakeOverrideBuilder.linkFakeOverride(fakeOverride)
     }
 
     private fun isVisibilityMoreSpecific(

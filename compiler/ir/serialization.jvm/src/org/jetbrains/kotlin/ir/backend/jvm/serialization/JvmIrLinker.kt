@@ -44,6 +44,15 @@ class JvmIrLinker(
     deserializeFakeOverrides: Boolean = FakeOverrideControl.deserializeFakeOverrides
 ) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, emptyList(), deserializeFakeOverrides) {
 
+    private val signaturer = IdSignatureSerializer(JvmManglerIr)
+    class JvmGlobalDeclarationTable(signatureSerializer: IdSignatureSerializer, builtIns: IrBuiltIns) : GlobalDeclarationTable(signatureSerializer, JvmManglerIr) {
+        init {
+            loadKnownBuiltins(builtIns)
+        }
+    }
+    private val globalDeclarationTable = JvmGlobalDeclarationTable(signaturer, builtIns)
+    override val declarationTable = DeclarationTable(globalDeclarationTable)
+
     override val fakeOverrideBuilder = FakeOverrideBuilder(symbolTable, IdSignatureSerializer(JvmManglerIr), builtIns)
 
     private val javaName = Name.identifier("java")

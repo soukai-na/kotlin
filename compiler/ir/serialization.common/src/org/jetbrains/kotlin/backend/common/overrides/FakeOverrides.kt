@@ -16,6 +16,8 @@
 
 package org.jetbrains.kotlin.backend.common.overrides
 
+import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
+import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.declarations.*
@@ -31,11 +33,15 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.ir.types.extractTypeParameters
 import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.types.Variance
 
 interface PlatformFakeOverrideClassFilter {
     fun constructFakeOverrides(clazz: IrClass): Boolean = true
+}
+
+interface FileLocalLinker {
+    fun provideIrSymbolExternally(idSignature: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol
 }
 
 object DefaultFakeOverrideClassFilter : PlatformFakeOverrideClassFilter
@@ -60,6 +66,8 @@ class FakeOverrideBuilder(
     private val haveFakeOverrides = mutableSetOf<IrClass>()
     override val propertyOverriddenSymbols = mutableMapOf<IrOverridableMember, List<IrSymbol>>()
     private val irOverridingUtil = IrOverridingUtil(irBuiltIns, this)
+
+    private var localLinker: FileLocalLinker? = null
 
     override fun fakeOverrideMember(
         superType: IrType,
@@ -90,12 +98,16 @@ class FakeOverrideBuilder(
         val deepCopyFakeOverride = copier.copy(member, clazz) as IrOverridableMember
         deepCopyFakeOverride.parent = clazz
 
+        println("CANDIDATE: ${deepCopyFakeOverride.render()}")
+
         return deepCopyFakeOverride
     }
 
     fun buildFakeOverrideChainsForClass(clazz: IrClass) {
         if (haveFakeOverrides.contains(clazz)) return
         if (!platformSpecificClassFilter.constructFakeOverrides(clazz)/* || !clazz.symbol.isPublicApi*/) return
+
+        println("FAKE OVERRIDES FOR "+ir2stringWhole(clazz))
 
         val superTypes = clazz.superTypes
 
@@ -125,9 +137,22 @@ class FakeOverrideBuilder(
         } else {
             signaturer.composeFileLocalIdSignature(declaration)
         }
-
-        symbolTable.declareSimpleFunctionFromLinker(WrappedSimpleFunctionDescriptor(), signature) {
-            declaration.acquireSymbol(it)
+        println("LINKING ${declaration.nameForIrSerialization} in ${(declaration.parent as IrClass).name}\nsig = $signature")
+        if (signature.toString() == "private kotlinx.cinterop/|null[0]:3:4638265728071529943") {
+            symbolTable.allUnbound.forEach {
+                try {
+                    println("$it ${it.signature}")
+                } catch (e: Throwable) {
+                    println(it)
+                }
+            }
+        }
+        if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrFunction).visibility == Visibilities.PRIVATE)) {
+            symbolTable.declareSimpleFunctionFromLinker(WrappedSimpleFunctionDescriptor(), signature) {
+                declaration.acquireSymbol(it)
+            }
+        } else {
+            localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.FUNCTION_SYMBOL)
         }
     }
 
@@ -154,8 +179,12 @@ class FakeOverrideBuilder(
             signaturer.composeFileLocalIdSignature(declaration)
         }
 
-        symbolTable.declarePropertyFromLinker(WrappedPropertyDescriptor(), signature) {
-            declaration.acquireSymbol(it)
+        if ((declaration.parent as IrClass).symbol.isPublicApi && !((declaration as IrProperty).visibility == Visibilities.PRIVATE)) {
+            symbolTable.declarePropertyFromLinker(WrappedPropertyDescriptor(), signature) {
+                declaration.acquireSymbol(it)
+            }
+        } else {
+            localLinker!!.provideIrSymbolExternally(signature, BinarySymbolData.SymbolKind.PROPERTY_SYMBOL)
         }
 
         declaration.getter?.let {
@@ -168,7 +197,8 @@ class FakeOverrideBuilder(
         }
     }
 
-    fun provideFakeOverrides(klass: IrClass) {
+    fun provideFakeOverrides(klass: IrClass, fileLocalLinker: FileLocalLinker) {
+        this.localLinker = fileLocalLinker // TODO: make me an extension point.
         buildFakeOverrideChainsForClass(klass)
         propertyOverriddenSymbols.clear()
         irOverridingUtil.clear()

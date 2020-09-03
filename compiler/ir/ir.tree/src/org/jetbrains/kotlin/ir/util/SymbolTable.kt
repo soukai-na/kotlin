@@ -216,7 +216,7 @@ class SymbolTable(
         }
 
         override fun set(d: D, s: S) {
-            if (s.isPublicApi) {
+            if (s.isPublicApi || s is IrCallableSymbolBase<*> && (s.signature as? IdSignature.FileLocalSignature)?.let { it.id > 10000 }?:false ) {
                 idSigToSymbol[s.signature] = s
             } else {
                 descriptorToSymbol[d] = s
@@ -634,13 +634,18 @@ class SymbolTable(
 
     override fun referenceProperty(descriptor: PropertyDescriptor, generate: () -> IrProperty): IrProperty =
         @Suppress("DEPRECATION")
-        propertyTable.getOrPut(descriptor, generate)
+        propertyTable.getOrPut(descriptor, generate).also {
+            println("reference 00: ${it.javaClass.simpleName}@${it.hashCode().toString(16)}")
+        }
 
     private fun createPropertySymbol(descriptor: PropertyDescriptor): IrPropertySymbol {
-        return signaturer.composeSignature(descriptor)?.let { IrPropertyPublicSymbolImpl(descriptor, it) } ?: IrPropertySymbolImpl(
-            descriptor
-        )
-
+        return signaturer.composeSignature(descriptor)?.let {
+            if (it.isPublic) {
+                IrPropertyPublicSymbolImpl(descriptor, it)
+            } else {
+                IrPropertyCallableSymbolImpl(descriptor, it)
+            }
+        } ?: IrPropertySymbolImpl(descriptor)
     }
 
     @OptIn(ObsoleteDescriptorBasedAPI::class)
@@ -691,6 +696,8 @@ class SymbolTable(
         return propertySymbolTable.run {
             if (sig.isPublic) {
                 declare(sig, descriptor, { IrPropertyPublicSymbolImpl(descriptor, sig) }, factory)
+            } else if ((sig as IdSignature.FileLocalSignature).id > 10000) {
+                declare(sig, descriptor, { IrPropertyCallableSymbolImpl(descriptor, sig) }, factory)
             } else {
                 declare(descriptor, { IrPropertySymbolImpl(descriptor) }, factory)
             }
@@ -698,15 +705,22 @@ class SymbolTable(
     }
 
     override fun referenceProperty(descriptor: PropertyDescriptor): IrPropertySymbol =
-        propertySymbolTable.referenced(descriptor) { createPropertySymbol(descriptor) }
+        propertySymbolTable.referenced(descriptor) { createPropertySymbol(descriptor) }.also {
+            println("reference 0: ${it.javaClass.simpleName}@${it.hashCode().toString(16)}")
+        }
 
     fun referencePropertyIfAny(sig: IdSignature): IrPropertySymbol? =
         propertySymbolTable.get(sig)
 
     override fun referencePropertyFromLinker(descriptor: PropertyDescriptor, sig: IdSignature): IrPropertySymbol =
         propertySymbolTable.run {
-            if (sig.isPublic) referenced(sig) { IrPropertyPublicSymbolImpl(descriptor, sig) }
-            else referenced(descriptor) { IrPropertySymbolImpl(descriptor) }
+            if (sig.isPublic) {
+                referenced(sig) { IrPropertyPublicSymbolImpl(descriptor, sig) }
+            } else if ((sig as IdSignature.FileLocalSignature).id > 10000) {
+                referenced(sig) { IrPropertyCallableSymbolImpl(descriptor, sig) }
+            } else {
+                referenced(descriptor) { IrPropertySymbolImpl(descriptor) }
+            }
         }
 
     val unboundProperties: Set<IrPropertySymbol> get() = propertySymbolTable.unboundSymbols
@@ -757,14 +771,20 @@ class SymbolTable(
     val unboundTypeAliases: Set<IrTypeAliasSymbol> get() = typeAliasSymbolTable.unboundSymbols
 
     private fun createSimpleFunctionSymbol(descriptor: FunctionDescriptor): IrSimpleFunctionSymbol {
-        return signaturer.composeSignature(descriptor)?.let { IrSimpleFunctionPublicSymbolImpl(descriptor, it) }
-            ?: IrSimpleFunctionSymbolImpl(descriptor)
+        return signaturer.composeSignature(descriptor)?.let {
+            if (it.isPublic) {
+                IrSimpleFunctionPublicSymbolImpl(descriptor, it)
+            } else {
+                IrSimpleFunctionCallableSymbolImpl(descriptor, it)
+            }
+        } ?: IrSimpleFunctionSymbolImpl(descriptor)
     }
 
     fun declareSimpleFunction(
         descriptor: FunctionDescriptor,
         functionFactory: (IrSimpleFunctionSymbol) -> IrSimpleFunction
     ): IrSimpleFunction {
+        println("DECLARE 0 : $descriptor")
         return simpleFunctionSymbolTable.declare(
             descriptor,
             { createSimpleFunctionSymbol(descriptor) },
@@ -777,6 +797,7 @@ class SymbolTable(
         symbolFactory: () -> IrSimpleFunctionSymbol,
         functionFactory: (IrSimpleFunctionSymbol) -> IrSimpleFunction
     ): IrSimpleFunction {
+        println("DECLARE 1: $sig")
         return simpleFunctionSymbolTable.declare(
             sig,
             symbolFactory,
@@ -788,6 +809,7 @@ class SymbolTable(
         descriptor: FunctionDescriptor,
         functionFactory: (IrSimpleFunctionSymbol) -> IrSimpleFunction
     ): IrSimpleFunction {
+        println("DECLARE if not exists: $descriptor")
         return simpleFunctionSymbolTable.declareIfNotExists(descriptor, { createSimpleFunctionSymbol(descriptor) }, functionFactory)
     }
 
@@ -796,9 +818,15 @@ class SymbolTable(
         sig: IdSignature,
         functionFactory: (IrSimpleFunctionSymbol) -> IrSimpleFunction
     ): IrSimpleFunction {
+        println("DECLARE: $sig")
         return simpleFunctionSymbolTable.run {
             if (sig.isPublic) {
                 declare(sig, descriptor, { IrSimpleFunctionPublicSymbolImpl(descriptor, sig) }, functionFactory)
+            } else if ((sig as IdSignature.FileLocalSignature).id > 10000) {
+                declare(sig, descriptor, { IrSimpleFunctionCallableSymbolImpl(descriptor, sig) }, functionFactory).also {
+                    println(descriptor)
+                    println("$sig is ${(sig as IdSignature.FileLocalSignature).id} > 10000, created sym: ${it.symbol} ${it.symbol.javaClass.simpleName}@${it.symbol.hashCode().toString(16)}")
+                }
             } else {
                 declare(descriptor, { IrSimpleFunctionSymbolImpl(descriptor) }, functionFactory)
             }
@@ -812,9 +840,24 @@ class SymbolTable(
         simpleFunctionSymbolTable.get(sig)
 
     override fun referenceSimpleFunctionFromLinker(descriptor: FunctionDescriptor, sig: IdSignature): IrSimpleFunctionSymbol {
+        println("REFERENCE: $sig")
         return simpleFunctionSymbolTable.run {
-            if (sig.isPublic) referenced(sig) { IrSimpleFunctionPublicSymbolImpl(descriptor, sig) } else
+            if (sig.isPublic) {
+                referenced(sig) { IrSimpleFunctionPublicSymbolImpl(descriptor, sig) }
+            } else if ((sig as IdSignature.FileLocalSignature).id > 10000) {
+
+                referenced(sig) { IrSimpleFunctionCallableSymbolImpl(descriptor, sig) } .also {
+                    println(descriptor)
+                    println("$sig is ${(sig as IdSignature.FileLocalSignature).id} > 10000, referenced sym: ${it} ${it.javaClass.simpleName}@${it.hashCode().toString(16)}")
+
+                    if (sig.toString() == "private kotlinx.cinterop/|null[0]:3:4638265728071529943") {
+                        println("AFTER REFERENCE idSigToSymbol[sig] = ${simpleFunctionSymbolTable.idSigToSymbol[sig]}")
+                    }
+
+                }
+            } else {
                 referenced(descriptor) { IrSimpleFunctionSymbolImpl(descriptor) }
+            }
         }
     }
 
@@ -1111,7 +1154,7 @@ fun SymbolTable.noUnboundLeft(message: String) {
     assert(unbound.isEmpty()) {
         "$message\n" +
                 unbound.map {
-                    "$it ${if (it.isPublicApi) it.signature.toString() else "NON-PUBLIC API $it"}"
+                    "${it.javaClass.simpleName}@${it.hashCode().toString(16)} ${if (it.isPublicApi) it.signature.toString() else "NON-PUBLIC API $it"}"
                     //"$it ${it.signature.toString()}"
                 }.joinToString("\n")
     }

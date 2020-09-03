@@ -233,6 +233,7 @@ open class IrFileSerializer(
 
     private fun protoIdSignature(declaration: IrDeclaration): Int {
         val idSig = declarationTable.signatureByDeclaration(declaration)
+        if (declaration is IrSimpleFunction) println("SERIALIZING SIGNATURE: $idSig\nwhich is ${declaration.render()}\nin ${declaration.parent.render()}")
         return protoIdSignature(idSig)
     }
 
@@ -286,6 +287,14 @@ open class IrFileSerializer(
         val declaration = symbol.owner as? IrDeclaration ?: error("Expected IrDeclaration: ${symbol.owner.render()}")
 
         val symbolKind = protoSymbolKind(symbol)
+
+        if (symbol is IrSimpleFunctionSymbol) {
+            try {
+                println("SERIALIZING SYMBOL: $symbol ${symbol.signature}")
+            } catch (e: Throwable) {
+                println("SERIALIZING SYMBOL: $symbol NO SIG ${symbol.javaClass.simpleName}@${symbol.hashCode()}")
+            }
+        }
         val signatureId = protoIdSignature(declaration)
         return BinarySymbolData
             .encode(symbolKind, signatureId)
@@ -1053,6 +1062,9 @@ open class IrFileSerializer(
         val proto = ProtoFunction.newBuilder()
             .setBase(serializeIrFunctionBase(declaration, FunctionFlags.encode(declaration)))
 
+        try {
+            println("SERIALIZING FUNCTION: ${declaration.render()} ${declaration.symbol} ${declaration.symbol.signature}")
+        } catch (e: Throwable) {}
         declaration.overriddenSymbols.forEach {
             proto.addOverridden(serializeIrSymbol(it))
         }

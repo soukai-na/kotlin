@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.declarations.IrSymbolOwner
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.ir.util.KotlinMangler
+import org.jetbrains.kotlin.ir.util.render
 
 
 interface IdSignatureClashTracker {
@@ -78,6 +79,11 @@ open class DeclarationTable(private val globalDeclarationTable: GlobalDeclaratio
 
     fun signatureByDeclaration(declaration: IrDeclaration): IdSignature {
         return computeSignatureByDeclaration(declaration)
+    }
+
+    fun assumeDeclarationSignature(declaration: IrDeclaration, signature: IdSignature) {
+        require(table[declaration] == null) { "Declaration table already has signature for ${declaration.render()}" }
+        table.put(declaration, signature)
     }
 }
 

@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.backend.common.serialization
 
 import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideBuilder
+import org.jetbrains.kotlin.backend.common.overrides.FileLocalLinker
 import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
@@ -73,7 +74,8 @@ abstract class KotlinIrLinker(
     abstract val translationPluginContext: TranslationPluginContext?
 
     private val haveSeen = mutableSetOf<IrSymbol>()
-    private val fakeOverrideClassQueue = mutableListOf<IrClass>()
+    //private val fakeOverrideClassQueue = mutableListOf<IrClass>()
+    abstract val declarationTable: DeclarationTable
 
     private lateinit var linkerExtensions: Collection<IrDeserializer.IrLinkerExtension>
 
@@ -128,6 +130,15 @@ abstract class KotlinIrLinker(
             moduleFragment.files.addAll(files)
 
             fileToDeserializerMap.values.forEach { it.deserializeExpectActualMapping() }
+        }
+
+        fun postProcess() {
+            fileToDeserializerMap.values.forEach { fileDeserializer ->
+                while (fileDeserializer.fakeOverrideClassQueue.isNotEmpty()) {
+                    val klass = fileDeserializer.fakeOverrideClassQueue.removeLast()
+                    fakeOverrideBuilder.provideFakeOverrides(klass, fileDeserializer as FileLocalLinker)
+                }
+            }
         }
 
         // TODO: fix to topLevel checker
@@ -231,7 +242,9 @@ abstract class KotlinIrLinker(
         inlineBodies: Boolean,
         deserializeFakeOverrides: Boolean,
         private val moduleDeserializer: IrModuleDeserializer
-    ) : IrFileDeserializer(logger, builtIns, symbolTable, !onlyHeaders, deserializeFakeOverrides, fakeOverrideClassQueue) {
+    ) :
+        FileLocalLinker,
+        IrFileDeserializer(logger, builtIns, symbolTable, !onlyHeaders, deserializeFakeOverrides, declarationTable) {
 
         private var fileLoops = mutableMapOf<Int, IrLoop>()
 
@@ -244,6 +257,8 @@ abstract class KotlinIrLinker(
         override val platformFakeOverrideClassFilter = fakeOverrideBuilder.platformSpecificClassFilter
 
         var reversedSignatureIndex = emptyMap<IdSignature, Int>()
+
+        override val fakeOverrideClassQueue = mutableListOf<IrClass>()
 
         inner class FileDeserializationState {
             private val reachableTopLevels = LinkedHashSet<IdSignature>()
@@ -360,6 +375,10 @@ abstract class KotlinIrLinker(
             return fileLocalDeserializationState.deserializedSymbols.getOrPut(idSig) {
                 referenceDeserializedSymbol(symbolKind, idSig)
             }
+        }
+
+        override fun provideIrSymbolExternally(idSignature: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
+            return deserializeIrSymbolData(idSignature, symbolKind)
         }
 
         private fun deserializeIrSymbolData(idSignature: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
@@ -597,11 +616,14 @@ abstract class KotlinIrLinker(
 
     override fun postProcess() {
         finalizeExpectActualLinker()
-        
-        while (fakeOverrideClassQueue.isNotEmpty()) {
-            val klass = fakeOverrideClassQueue.removeLast()
-            fakeOverrideBuilder.provideFakeOverrides(klass)
+
+        deserializersForModules.keys.filterIsInstance<BasicIrModuleDeserializer>().forEach {
+            it.postProcess()
         }
+        //while (fakeOverrideClassQueue.isNotEmpty()) {
+        //    val klass = fakeOverrideClassQueue.removeLast()
+        //    fakeOverrideBuilder.provideFakeOverrides(klass)
+        //}
 
         haveSeen.clear()
 

@@ -111,7 +111,7 @@ abstract class IrFileDeserializer(
     val symbolTable: SymbolTable,
     protected var deserializeBodies: Boolean,
     private val deserializeFakeOverrides: Boolean,
-    private val fakeOverrideQueue: MutableList<IrClass>
+    private val declarationTable: DeclarationTable
 ) {
     protected val irFactory: IrFactory get() = symbolTable.irFactory
 
@@ -131,6 +131,7 @@ abstract class IrFileDeserializer(
 
     abstract val deserializeInlineFunctions: Boolean
     abstract val platformFakeOverrideClassFilter: PlatformFakeOverrideClassFilter
+    abstract val fakeOverrideClassQueue: MutableList<IrClass>
 
     fun deserializeFqName(fqn: List<Int>): String =
         fqn.joinToString(".", transform = ::deserializeString)
@@ -1051,11 +1052,14 @@ abstract class IrFileDeserializer(
 
                 (descriptor as? WrappedClassDescriptor)?.bind(this)
 
+                declarationTable.assumeDeclarationSignature(this, signature)
                 if (!deserializeFakeOverrides) {
                     //if (symbol.isPublicApi) {
-                        fakeOverrideQueue.add(this)
+                        fakeOverrideClassQueue.add(this)
                     //}
                 }
+            }.also {
+                println("Deserializing CLASS: ${it.render()}")
             }
         }
 
@@ -1203,6 +1207,7 @@ abstract class IrFileDeserializer(
             }.apply {
                 overriddenSymbols = proto.overriddenList.map { deserializeIrSymbolAndRemap(it) as IrSimpleFunctionSymbol }
 
+                println("binding ${this.name} descriptor ${this.render()}" )
                 (descriptor as? WrappedSimpleFunctionDescriptor)?.bind(this)
             }
         }

@@ -129,7 +129,7 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
                         p,
                         if (parent is IrClass && parent.declarations.contains(declaration)) {
                             mangler.run { declaration.signatureMangle }.also {
-                                println("HASH: $it in ${declaration.parent.render()}\n\t${declaration.render()}")
+                                println("HASH: ${it} in ${declaration.parent.render()}\n\t${declaration.render()}")
                             }
                         } else {
                             ++localIndex

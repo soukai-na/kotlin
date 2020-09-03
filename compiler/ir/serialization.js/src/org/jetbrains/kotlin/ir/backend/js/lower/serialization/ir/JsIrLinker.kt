@@ -32,7 +32,7 @@ class JsIrLinker(
 
     private val signaturer = IdSignatureSerializer(JsManglerIr)
     private val globalDeclarationTable = JsGlobalDeclarationTable(signaturer, builtIns)
-    private val declarationTable = DeclarationTable(globalDeclarationTable)
+    override val declarationTable = DeclarationTable(globalDeclarationTable)
 
     override val fakeOverrideBuilder = FakeOverrideBuilder(symbolTable, signaturer, builtIns)
 

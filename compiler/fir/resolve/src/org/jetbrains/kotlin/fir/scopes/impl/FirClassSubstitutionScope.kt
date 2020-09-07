@@ -134,10 +134,13 @@ class FirClassSubstitutionScope(
     private fun ConeKotlinType.makeNullableIf(doIt: Boolean): ConeKotlinType =
         if (doIt) this.withNullability(ConeNullability.NULLABLE) else this
 
-    private fun ConeKotlinType.approximateCapturedCovariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+    private fun ConeKotlinType.approximateCaptured(
+        contravariantPosition: Boolean,
+        annotations: List<FirAnnotationCall>
+    ): ConeKotlinType {
         if (this is ConeFlexibleType) {
-            val lowerBound = lowerBound.approximateCapturedCovariant(annotations)
-            val upperBound = upperBound.approximateCapturedCovariant(annotations)
+            val lowerBound = lowerBound.approximateCaptured(contravariantPosition, annotations)
+            val upperBound = upperBound.approximateCaptured(contravariantPosition, annotations)
             return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
                 ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
             } else {
@@ -150,41 +153,35 @@ class FirClassSubstitutionScope(
         ) return this
         val typeProjection = constructor.projection as? ConeKotlinTypeProjection
 
-        return when (typeProjection?.kind) {
-            ProjectionKind.OUT -> typeProjection.type.makeNullableIf(nullability.isNullable)
-            ProjectionKind.IN -> StandardClassIds.Any.constructClassLikeType(
-                emptyArray(), isNullable = true
-            )
-            null -> lowerType?.makeNullableIf(nullability.isNullable) ?: StandardClassIds.Any.constructClassLikeType(
-                emptyArray(), isNullable = true
-            )
-            else -> throw AssertionError("Only nontrivial projections should have been captured, not: $typeProjection")
+        val errorMessage by lazy { "Only nontrivial projections should have been captured, not: $typeProjection" }
+        return if (contravariantPosition) {
+            when (typeProjection?.kind) {
+                ProjectionKind.IN -> typeProjection.type.makeNullableIf(nullability.isNullable)
+                ProjectionKind.OUT, null -> StandardClassIds.Nothing.constructClassLikeType(
+                    emptyArray(), isNullable = nullability.isNullable
+                )
+                else -> throw AssertionError(errorMessage)
+            }
+        } else {
+            when (typeProjection?.kind) {
+                ProjectionKind.OUT -> typeProjection.type.makeNullableIf(nullability.isNullable)
+                ProjectionKind.IN -> StandardClassIds.Any.constructClassLikeType(
+                    emptyArray(), isNullable = true
+                )
+                null -> lowerType?.makeNullableIf(nullability.isNullable) ?: StandardClassIds.Any.constructClassLikeType(
+                    emptyArray(), isNullable = true
+                )
+                else -> throw AssertionError(errorMessage)
+            }
         }
     }
 
-    private fun ConeKotlinType.approximateCapturedContravariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
-        if (this is ConeFlexibleType) {
-            val lowerBound = lowerBound.approximateCapturedContravariant(annotations)
-            val upperBound = upperBound.approximateCapturedContravariant(annotations)
-            return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
-                ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
-            } else {
-                this
-            }
-        }
-        if (this !is ConeCapturedType ||
-            this.captureStatus != CaptureStatus.FOR_SUBTYPING ||
-            annotations.any { it.isUnsafeVariance }
-        ) return this
-        val typeProjection = constructor.projection as? ConeKotlinTypeProjection
+    private fun ConeKotlinType.approximateCapturedCovariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        return approximateCaptured(contravariantPosition = false, annotations)
+    }
 
-        return when (typeProjection?.kind) {
-            ProjectionKind.IN -> typeProjection.type.makeNullableIf(nullability.isNullable)
-            ProjectionKind.OUT, null -> StandardClassIds.Nothing.constructClassLikeType(
-                emptyArray(), isNullable = nullability.isNullable
-            )
-            else -> throw AssertionError("Only nontrivial projections should have been captured, not: $typeProjection")
-        }
+    private fun ConeKotlinType.approximateCapturedContravariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        return approximateCaptured(contravariantPosition = true, annotations)
     }
 
     private fun createFakeOverrideFunction(original: FirFunctionSymbol<*>): FirFunctionSymbol<*> {

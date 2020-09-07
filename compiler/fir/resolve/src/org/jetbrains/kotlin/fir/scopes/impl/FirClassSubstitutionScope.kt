@@ -135,6 +135,15 @@ class FirClassSubstitutionScope(
         if (doIt) this.withNullability(ConeNullability.NULLABLE) else this
 
     private fun ConeKotlinType.approximateCapturedCovariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        if (this is ConeFlexibleType) {
+            val lowerBound = lowerBound.approximateCapturedCovariant(annotations)
+            val upperBound = upperBound.approximateCapturedCovariant(annotations)
+            return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
+                ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
+            } else {
+                this
+            }
+        }
         if (this !is ConeCapturedType ||
             this.captureStatus != CaptureStatus.FOR_SUBTYPING ||
             annotations.any { it.isUnsafeVariance }
@@ -154,6 +163,15 @@ class FirClassSubstitutionScope(
     }
 
     private fun ConeKotlinType.approximateCapturedContravariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        if (this is ConeFlexibleType) {
+            val lowerBound = lowerBound.approximateCapturedContravariant(annotations)
+            val upperBound = upperBound.approximateCapturedContravariant(annotations)
+            return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
+                ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
+            } else {
+                this
+            }
+        }
         if (this !is ConeCapturedType ||
             this.captureStatus != CaptureStatus.FOR_SUBTYPING ||
             annotations.any { it.isUnsafeVariance }

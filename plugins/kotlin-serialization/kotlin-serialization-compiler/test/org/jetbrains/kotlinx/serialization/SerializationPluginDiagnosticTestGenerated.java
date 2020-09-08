@@ -78,6 +78,11 @@ public class SerializationPluginDiagnosticTestGenerated extends AbstractSerializ
         runTest("plugins/kotlin-serialization/kotlin-serialization-compiler/testData/diagnostics/SerializableIgnored.kt");
     }
 
+    @TestMetadata("SerializerTypeIncompatible.kt")
+    public void testSerializerTypeIncompatible() throws Exception {
+        runTest("plugins/kotlin-serialization/kotlin-serialization-compiler/testData/diagnostics/SerializerTypeIncompatible.kt");
+    }
+
     @TestMetadata("Transients.kt")
     public void testTransients() throws Exception {
         runTest("plugins/kotlin-serialization/kotlin-serialization-compiler/testData/diagnostics/Transients.kt");

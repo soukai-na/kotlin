@@ -138,16 +138,26 @@ class FirClassSubstitutionScope(
         contravariantPosition: Boolean,
         annotations: List<FirAnnotationCall>
     ): ConeKotlinType {
-        if (this is ConeFlexibleType) {
-            val lowerBound = lowerBound.approximateCaptured(contravariantPosition, annotations)
-            val upperBound = upperBound.approximateCaptured(contravariantPosition, annotations)
-            return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
-                ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
-            } else {
-                this
+        when (this) {
+            is ConeFlexibleType -> {
+                val lowerBound = lowerBound.approximateCaptured(contravariantPosition, annotations)
+                val upperBound = upperBound.approximateCaptured(contravariantPosition, annotations)
+                return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
+                    ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
+                } else {
+                    this
+                }
             }
+            is ConeDefinitelyNotNullType -> {
+                val original = original.approximateCaptured(contravariantPosition, annotations)
+                return if (original !== this.original) ConeDefinitelyNotNullType(original) else this
+            }
+            is ConeCapturedType -> {
+                if (captureStatus != CaptureStatus.FOR_SUBTYPING) return this
+            }
+            else -> return this
         }
-        if (this !is ConeCapturedType || this.captureStatus != CaptureStatus.FOR_SUBTYPING) return this
+
         val typeProjection = constructor.projection as? ConeKotlinTypeProjection
         val hasUnsafeVariance = annotations.any { it.isUnsafeVariance }
         val useUnsafeVariance = hasUnsafeVariance && typeProjection?.kind != ProjectionKind.IN

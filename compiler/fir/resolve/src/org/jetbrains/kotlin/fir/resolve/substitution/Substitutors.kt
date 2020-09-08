@@ -149,19 +149,3 @@ data class ConeSubstitutorByMap(val substitution: Map<FirTypeParameterSymbol, Co
     }
 }
 
-class ConeSubstitutorByStar(val symbol: FirTypeParameterSymbol) : AbstractConeSubstitutor() {
-    override fun substituteType(type: ConeKotlinType): ConeKotlinType? {
-        if (type !is ConeLookupTagBasedType) return null
-        if (type.typeArguments.none {
-                it is ConeKotlinTypeProjection && (it.type as? ConeTypeParameterType)?.lookupTag?.typeParameterSymbol == symbol
-            }
-        ) return null
-        return type.lookupTag.constructType(type.typeArguments.map {
-            if (it is ConeKotlinTypeProjection && (it.type as? ConeTypeParameterType)?.lookupTag?.typeParameterSymbol == symbol) {
-                ConeStarProjection
-            } else {
-                it
-            }
-        }.toTypedArray(), type.isNullable)
-    }
-}

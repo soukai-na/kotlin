@@ -1,7 +1,7 @@
 // !WITH_NEW_INFERENCE
 
 fun test(mc: MutableCollection<out CharSequence>) {
-    mc.<!INAPPLICABLE_CANDIDATE!>addAll<!>(mc)
+    mc.addAll(mc)
 
     mc.<!INAPPLICABLE_CANDIDATE!>addAll<!>(arrayListOf<CharSequence>())
     mc.addAll(arrayListOf())

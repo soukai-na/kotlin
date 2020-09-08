@@ -168,9 +168,12 @@ class FirClassSubstitutionScope(
                 ProjectionKind.IN -> StandardClassIds.Any.constructClassLikeType(
                     emptyArray(), isNullable = true
                 )
-                null -> lowerType?.makeNullableIf(nullability.isNullable) ?: StandardClassIds.Any.constructClassLikeType(
-                    emptyArray(), isNullable = true
-                )
+                null -> constructor.supertypes?.let { supertypes ->
+                    ConeTypeIntersector.intersectTypes(
+                        session.typeContext,
+                        supertypes
+                    ).makeNullableIf(nullability.isNullable)
+                } ?: StandardClassIds.Any.constructClassLikeType(emptyArray(), isNullable = true)
                 else -> throw AssertionError(errorMessage)
             }
         }

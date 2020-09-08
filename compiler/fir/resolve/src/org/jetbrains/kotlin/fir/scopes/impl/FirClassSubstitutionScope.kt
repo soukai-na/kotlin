@@ -147,14 +147,13 @@ class FirClassSubstitutionScope(
                 this
             }
         }
-        if (this !is ConeCapturedType ||
-            this.captureStatus != CaptureStatus.FOR_SUBTYPING ||
-            annotations.any { it.isUnsafeVariance }
-        ) return this
+        if (this !is ConeCapturedType || this.captureStatus != CaptureStatus.FOR_SUBTYPING) return this
         val typeProjection = constructor.projection as? ConeKotlinTypeProjection
+        val hasUnsafeVariance = annotations.any { it.isUnsafeVariance }
+        val useUnsafeVariance = hasUnsafeVariance && typeProjection?.kind != ProjectionKind.IN
 
         val errorMessage by lazy { "Only nontrivial projections should have been captured, not: $typeProjection" }
-        return if (contravariantPosition) {
+        return if (contravariantPosition && !useUnsafeVariance) {
             when (typeProjection?.kind) {
                 ProjectionKind.IN -> typeProjection.type.makeNullableIf(nullability.isNullable)
                 ProjectionKind.OUT, null -> StandardClassIds.Nothing.constructClassLikeType(

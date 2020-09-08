@@ -180,7 +180,11 @@ class FirClassSubstitutionScope(
                 null -> constructor.supertypes?.let { supertypes ->
                     ConeTypeIntersector.intersectTypes(
                         session.typeContext,
-                        supertypes
+                        supertypes.map { supertype ->
+                            supertype.withArguments(
+                                supertype.typeArguments.map { it.takeIf { it !== this } ?: ConeStarProjection }.toTypedArray()
+                            )
+                        }
                     ).makeNullableIf(nullability.isNullable)
                 } ?: StandardClassIds.Any.constructClassLikeType(emptyArray(), isNullable = true)
                 else -> throw AssertionError(errorMessage)

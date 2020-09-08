@@ -56,6 +56,8 @@ fun <T : ConeKotlinType> T.withArguments(arguments: Array<out ConeTypeProjection
         is ConeClassErrorType -> this
         is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, arguments, nullability.isNullable) as T
         is ConeDefinitelyNotNullType -> ConeDefinitelyNotNullType.create(original.withArguments(arguments))!! as T
+        is ConeFlexibleType -> ConeFlexibleType(lowerBound.withArguments(arguments), upperBound.withArguments(arguments)) as T
+        is ConeTypeParameterType, is ConeCapturedType -> this
         else -> error("Not supported: $this: ${this.render()}")
     }
 }

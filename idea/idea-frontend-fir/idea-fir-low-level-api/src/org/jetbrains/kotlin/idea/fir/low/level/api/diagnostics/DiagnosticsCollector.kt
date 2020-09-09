@@ -31,11 +31,18 @@ internal class DiagnosticsCollector(
 
     fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
         val ktFile = element.containingKtFile
-        val diagnostics = diagnosticsForFile.computeIfAbsent(ktFile) {
-            val firFile = firFileBuilder.buildRawFirFileWithCaching(ktFile, cache)
-            DiagnosticsForFile(ktFile, firFile, elementBuilder, psiToFirCache, cache)
-        }
+        val diagnostics = getDiagnosticsForKtFile(ktFile)
         return diagnostics.getDiagnosticsFor(element)
+    }
+
+    fun collectDiagnosticsForFile(ktFile: KtFile): Collection<Diagnostic> {
+        val diagnostics = getDiagnosticsForKtFile(ktFile)
+        return diagnostics.collectDiagnosticsForFile()
+    }
+
+    private fun getDiagnosticsForKtFile(ktFile: KtFile) = diagnosticsForFile.computeIfAbsent(ktFile) {
+        val firFile = firFileBuilder.buildRawFirFileWithCaching(ktFile, cache)
+        DiagnosticsForFile(ktFile, firFile, elementBuilder, psiToFirCache, cache)
     }
 }
 
@@ -48,24 +55,29 @@ private class DiagnosticsForFile(
 ) {
     private val declarationToDiagnostics = ConcurrentHashMap<KtAnnotated, Map<KtElement, List<Diagnostic>>>()
 
-    fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
-        val containerDeclaration = element as? KtDeclaration
-            ?: element.containingDeclarationForPseudocode
-            ?: ktFile
-        return declarationToDiagnostics.computeIfAbsent(containerDeclaration) {
-            when (val fir = elementBuilder.getOrBuildFirFor(containerDeclaration, cache, psiToFirCache, FirResolvePhase.BODY_RESOLVE)) {
-                is FirDeclaration -> {
-                    FirIdeDiagnosticsCollector(fir, fir.session).let { collector ->
-                        collector.collectDiagnostics(firFile)
-                        collector.elementToDiagnostic
-                    }
-                }
-                is FirDiagnosticHolder -> {
-                    emptyMap() //TODO take diagnostic from FirDiagnosticHolder
-                }
-                else -> error("KtDeclaration should be mapped to FirDeclaration")
-            }
+    fun collectDiagnosticsForFile(): Collection<Diagnostic> =
+        FirIdeFileDiagnosticsCollector.collectForFile(firFile)
 
-        }.getOrDefault(element, emptyList())
+    fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
+        TODO("Not supported yet")
+//        val containerDeclaration = element as? KtDeclaration
+//            ?: element.containingDeclarationForPseudocode
+//            ?: ktFile
+//        return declarationToDiagnostics.computeIfAbsent(containerDeclaration) {
+//            when (val fir = elementBuilder.getOrBuildFirFor(containerDeclaration, cache, psiToFirCache, FirResolvePhase.BODY_RESOLVE)) {
+//                is FirDeclaration -> {
+//                    FirIdeDiagnosticsCollector(fir, fir.session).let { collector ->
+//                        collector.collectDiagnostics(firFile)
+//                        collector.elementToDiagnostic
+//                    }
+//                    emptyMap()
+//                }
+//                is FirDiagnosticHolder -> {
+//                    emptyMap() //TODO take diagnostic from FirDiagnosticHolder
+//                }
+//                else -> error("KtDeclaration should be mapped to FirDeclaration")
+//            }
+//
+//        }.getOrDefault(element, emptyList())
     }
 }

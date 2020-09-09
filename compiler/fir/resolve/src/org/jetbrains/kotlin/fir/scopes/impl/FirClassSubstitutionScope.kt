@@ -150,7 +150,7 @@ class FirClassSubstitutionScope(
             }
             is ConeDefinitelyNotNullType -> {
                 val original = original.approximateCaptured(contravariantPosition, annotations)
-                return if (original !== this.original) ConeDefinitelyNotNullType(original) else this
+                return if (original !== this.original) ConeDefinitelyNotNullType.create(original) ?: original else this
             }
             is ConeCapturedType -> {
                 if (captureStatus != CaptureStatus.FOR_SUBTYPING) return this

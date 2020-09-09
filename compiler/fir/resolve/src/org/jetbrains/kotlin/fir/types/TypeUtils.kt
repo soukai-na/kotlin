@@ -53,10 +53,19 @@ fun <T : ConeKotlinType> T.withArguments(arguments: Array<out ConeTypeProjection
 
     @Suppress("UNCHECKED_CAST")
     return when (this) {
-        is ConeClassErrorType -> this
-        is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, arguments, nullability.isNullable) as T
-        is ConeDefinitelyNotNullType -> ConeDefinitelyNotNullType.create(original.withArguments(arguments))!! as T
-        is ConeFlexibleType -> ConeFlexibleType(lowerBound.withArguments(arguments), upperBound.withArguments(arguments)) as T
+        is ConeClassErrorType -> {
+            this
+        }
+        is ConeClassLikeTypeImpl -> {
+            ConeClassLikeTypeImpl(lookupTag, arguments, nullability.isNullable) as T
+        }
+        is ConeDefinitelyNotNullType -> {
+            val originalWithArguments = original.withArguments(arguments)
+            (ConeDefinitelyNotNullType.create(originalWithArguments) ?: originalWithArguments) as T
+        }
+        is ConeFlexibleType -> {
+            ConeFlexibleType(lowerBound.withArguments(arguments), upperBound.withArguments(arguments)) as T
+        }
         is ConeTypeParameterType, is ConeCapturedType -> this
         else -> error("Not supported: $this: ${this.render()}")
     }

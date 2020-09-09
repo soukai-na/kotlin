@@ -1,0 +1,8 @@
+FILE: starNullabilityRecursive.kt
+    public abstract interface A<T : R|A<T?>?|> : R|kotlin/Any| {
+        public abstract fun foo(): R|T?|
+
+    }
+    public final fun testA(a: R|A<*>|): R|kotlin/Unit| {
+        lval res: R|A<CapturedType(*)?>?| = R|<local>/a|.R|FakeOverride</A.foo: R|A<CapturedType(*)?>?|>|()
+    }

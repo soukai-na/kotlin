@@ -1963,6 +1963,11 @@ public class FirDiagnosticsTestGenerated extends AbstractFirDiagnosticsTest {
         public void testSecondaryConstructorCfg() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/problems/secondaryConstructorCfg.kt");
         }
+
+        @TestMetadata("starNullabilityRecursive.kt")
+        public void testStarNullabilityRecursive() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/problems/starNullabilityRecursive.kt");
+        }
     }
 
     @TestMetadata("compiler/fir/analysis-tests/testData/resolve/properties")

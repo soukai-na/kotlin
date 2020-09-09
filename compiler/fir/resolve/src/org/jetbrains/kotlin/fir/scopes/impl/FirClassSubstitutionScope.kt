@@ -136,12 +136,13 @@ class FirClassSubstitutionScope(
 
     private fun ConeKotlinType.approximateCaptured(
         contravariantPosition: Boolean,
-        annotations: List<FirAnnotationCall>
+        annotations: List<FirAnnotationCall>,
+        starsOnly: Boolean = false
     ): ConeKotlinType {
         when (this) {
             is ConeFlexibleType -> {
-                val lowerBound = lowerBound.approximateCaptured(contravariantPosition, annotations)
-                val upperBound = upperBound.approximateCaptured(contravariantPosition, annotations)
+                val lowerBound = lowerBound.approximateCaptured(contravariantPosition, annotations, starsOnly)
+                val upperBound = upperBound.approximateCaptured(contravariantPosition, annotations, starsOnly)
                 return if (lowerBound !== this.lowerBound || upperBound !== this.upperBound) {
                     ConeFlexibleType(lowerBound.lowerBoundIfFlexible(), upperBound.upperBoundIfFlexible())
                 } else {
@@ -149,16 +150,36 @@ class FirClassSubstitutionScope(
                 }
             }
             is ConeDefinitelyNotNullType -> {
-                val original = original.approximateCaptured(contravariantPosition, annotations)
+                val original = original.approximateCaptured(contravariantPosition, annotations, starsOnly)
                 return if (original !== this.original) ConeDefinitelyNotNullType.create(original) ?: original else this
             }
             is ConeCapturedType -> {
                 if (captureStatus != CaptureStatus.FOR_SUBTYPING) return this
             }
+            is ConeClassLikeType -> {
+                val typeArguments = this.typeArguments.map {
+                    when (it) {
+                        is ConeStarProjection -> it to false
+                        is ConeKotlinTypeProjection -> {
+                            val original = it.type
+                            val approximated = original.approximateCaptured(contravariantPosition, annotations, starsOnly = true)
+                            if (approximated === original) it to false
+                            else when (it) {
+                                is ConeKotlinTypeProjectionIn -> ConeKotlinTypeProjectionIn(approximated)
+                                is ConeKotlinTypeProjectionOut -> ConeKotlinTypeProjectionOut(approximated)
+                                else -> approximated
+                            } to true
+                        }
+                    }
+                }
+                return if (typeArguments.none { (_, wasApproximated) -> wasApproximated }) this
+                else this.withArguments(typeArguments.map { it.first }.toTypedArray())
+            }
             else -> return this
         }
 
         val typeProjection = constructor.projection as? ConeKotlinTypeProjection
+        if (typeProjection != null && starsOnly) return this
         val hasUnsafeVariance = annotations.any { it.isUnsafeVariance }
         val useUnsafeVariance = hasUnsafeVariance && typeProjection?.kind != ProjectionKind.IN
 

@@ -7,6 +7,7 @@ plugins {
 dependencies {
     api(project(":core:compiler.common.jvm"))
     api(project(":core:metadata.jvm"))
+    api(project(":core:deserialization.common.jvm"))
     api(project(":compiler:resolution.common.jvm"))
     api(project(":compiler:frontend.common"))
     api(project(":compiler:fir:resolve"))

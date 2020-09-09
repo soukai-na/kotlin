@@ -61,7 +61,7 @@ fun <T : ConeKotlinType> T.withArguments(arguments: Array<out ConeTypeProjection
         }
         is ConeDefinitelyNotNullType -> {
             val originalWithArguments = original.withArguments(arguments)
-            (ConeDefinitelyNotNullType.create(originalWithArguments) ?: originalWithArguments) as T
+            (ConeDefinitelyNotNullType.create(originalWithArguments) ?: originalWithArguments.lowerBoundIfFlexible()) as T
         }
         is ConeFlexibleType -> {
             ConeFlexibleType(lowerBound.withArguments(arguments), upperBound.withArguments(arguments)) as T

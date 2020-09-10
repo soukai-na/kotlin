@@ -12,7 +12,9 @@ import org.jetbrains.kotlin.fir.declarations.builder.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.declarations.synthetic.FirSyntheticProperty
 import org.jetbrains.kotlin.fir.declarations.synthetic.buildSyntheticProperty
+import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
+import org.jetbrains.kotlin.fir.resolve.inference.inferenceComponents
 import org.jetbrains.kotlin.fir.resolve.substitution.ChainedSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.chain
@@ -28,6 +30,7 @@ import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 
 class FirClassSubstitutionScope(
     private val session: FirSession,
@@ -128,6 +131,18 @@ class FirClassSubstitutionScope(
         return substitutor.substituteOrNull(this)
     }
 
+    private fun ConeKotlinType.approximateCapturedCovariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        return session.inferenceComponents.approximator.approximateToSuperType(
+            this, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
+        ) as? ConeKotlinType ?: this
+    }
+
+    private fun ConeKotlinType.approximateCapturedContravariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        return session.inferenceComponents.approximator.approximateToSubType(
+            this, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
+        ) as? ConeKotlinType ?: this
+    }
+
     private fun createFakeOverrideFunction(original: FirFunctionSymbol<*>): FirFunctionSymbol<*> {
         if (substitutor == ConeSubstitutor.Empty) return original
         val member = when (original) {
@@ -139,7 +154,7 @@ class FirClassSubstitutionScope(
 
         val (newTypeParameters, newReceiverType, newReturnType, newSubstitutor) = createSubstitutedData(member)
         val newParameterTypes = member.valueParameters.map {
-            it.returnTypeRef.coneType.substitute(newSubstitutor)
+            it.returnTypeRef.coneType.substitute(newSubstitutor)?.approximateCapturedContravariant(it.returnTypeRef.annotations)
         }
 
         if (newReceiverType == null && newReturnType == null && newParameterTypes.all { it == null } &&
@@ -171,7 +186,7 @@ class FirClassSubstitutionScope(
 
         val (newTypeParameters, _, newReturnType, newSubstitutor) = createSubstitutedData(constructor)
         val newParameterTypes = constructor.valueParameters.map {
-            it.returnTypeRef.coneType.substitute(newSubstitutor)
+            it.returnTypeRef.coneType.substitute(newSubstitutor)?.approximateCapturedContravariant(it.returnTypeRef.annotations)
         }
 
         if (newReturnType == null && newParameterTypes.all { it == null } && newTypeParameters === constructor.typeParameters) {
@@ -188,7 +203,7 @@ class FirClassSubstitutionScope(
         val member = original.fir
         if (skipPrivateMembers && member.visibility == Visibilities.Private) return original
 
-        val (newTypeParameters, newReceiverType, newReturnType) = createSubstitutedData(member)
+        val (newTypeParameters, newReceiverType, newReturnType, _) = createSubstitutedData(member)
         if (newReceiverType == null &&
             newReturnType == null && newTypeParameters === member.typeParameters
         ) {
@@ -223,10 +238,10 @@ class FirClassSubstitutionScope(
         )
 
         val receiverType = member.receiverTypeRef?.coneType
-        val newReceiverType = receiverType?.substitute(substitutor)
+        val newReceiverType = receiverType?.substitute(substitutor)?.approximateCapturedContravariant(member.receiverTypeRef?.annotations.orEmpty())
 
         val returnType = typeCalculator.tryCalculateReturnType(member).type
-        val newReturnType = returnType.substitute(substitutor)
+        val newReturnType = returnType.substitute(substitutor)?.approximateCapturedCovariant(member.returnTypeRef.annotations)
         return SubstitutedData(newTypeParameters, newReceiverType, newReturnType, substitutor)
     }
 
@@ -236,7 +251,7 @@ class FirClassSubstitutionScope(
         if (skipPrivateMembers && member.visibility == Visibilities.Private) return original
 
         val returnType = typeCalculator.tryCalculateReturnType(member).type
-        val newReturnType = returnType.substitute() ?: return original
+        val newReturnType = returnType.substitute()?.approximateCapturedCovariant(member.returnTypeRef.annotations) ?: return original
 
         return createFakeOverrideField(session, member, original, newReturnType, derivedClassId)
     }
@@ -247,10 +262,10 @@ class FirClassSubstitutionScope(
         if (skipPrivateMembers && member.visibility == Visibilities.Private) return original
 
         val returnType = typeCalculator.tryCalculateReturnType(member).type
-        val newReturnType = returnType.substitute()
+        val newReturnType = returnType.substitute()?.approximateCapturedCovariant(member.returnTypeRef.annotations)
 
         val newParameterTypes = member.getter.valueParameters.map {
-            it.returnTypeRef.coneType.substitute()
+            it.returnTypeRef.coneType.substitute()?.approximateCapturedContravariant(it.returnTypeRef.annotations)
         }
 
         if (newReturnType == null && newParameterTypes.all { it == null }) {
@@ -423,7 +438,9 @@ class FirClassSubstitutionScope(
                 isLocal = false
                 status = baseProperty.status.withExpect(isExpect)
                 resolvePhase = baseProperty.resolvePhase
-                typeParameters += configureAnnotationsTypeParametersAndSignature(baseProperty, newTypeParameters, newReceiverType, newReturnType)
+                typeParameters += configureAnnotationsTypeParametersAndSignature(
+                    baseProperty, newTypeParameters, newReceiverType, newReturnType
+                )
             }
             return symbol
         }

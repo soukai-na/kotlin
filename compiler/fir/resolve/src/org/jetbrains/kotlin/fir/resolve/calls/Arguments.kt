@@ -381,5 +381,5 @@ internal fun FirExpression.getExpectedType(
 }
 
 fun ConeKotlinType.varargElementType(): ConeKotlinType {
-    return this.arrayElementType() ?: error("Failed to extract! ${this.render()}!")
+    return this.arrayElementType() ?: this
 }

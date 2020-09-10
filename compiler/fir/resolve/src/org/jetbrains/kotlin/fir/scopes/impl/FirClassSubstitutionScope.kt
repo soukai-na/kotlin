@@ -138,6 +138,8 @@ class FirClassSubstitutionScope(
     }
 
     private fun ConeKotlinType.approximateCapturedContravariant(annotations: List<FirAnnotationCall>): ConeKotlinType {
+        val hasUnsafeVariance = annotations.any { it.isUnsafeVariance }
+        if (hasUnsafeVariance) return approximateCapturedCovariant(annotations)
         return session.inferenceComponents.approximator.approximateToSubType(
             this, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
         ) as? ConeKotlinType ?: this

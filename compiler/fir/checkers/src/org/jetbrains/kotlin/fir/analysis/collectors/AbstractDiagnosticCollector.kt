@@ -165,9 +165,10 @@ abstract class AbstractDiagnosticCollector(
             if (needCollectingDiagnosticsForDeclaration(declaration)) {
                 declaration.runComponents()
             }
-            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declaration)) {
-                withDeclaration(declaration) {
-                    declaration.acceptChildren(this, null)
+            val declarationToCheck = getDeclarationToAnalyse(declaration)
+            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declarationToCheck)) {
+                withDeclaration(declarationToCheck) {
+                    declarationToCheck.acceptChildren(this, null)
                 }
             }
         }
@@ -176,14 +177,15 @@ abstract class AbstractDiagnosticCollector(
             if (needCollectingDiagnosticsForDeclaration(declaration)) {
                 declaration.runComponents()
             }
-            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declaration)) {
-                withDeclaration(declaration) {
+            val declarationToCheck = getDeclarationToAnalyse(declaration)
+            withDiagnosticsCollection(needCollectingDiagnosticsForDeclaration(declarationToCheck)) {
+                withDeclaration(declarationToCheck) {
                     withLabelAndReceiverType(
                         labelName,
-                        declaration,
+                        declarationToCheck,
                         receiverTypeRef?.coneTypeSafe()
                     ) {
-                        declaration.acceptChildren(this, null)
+                        declarationToCheck.acceptChildren(this, null)
                     }
                 }
             }
@@ -191,10 +193,11 @@ abstract class AbstractDiagnosticCollector(
     }
 
     protected open fun needCollectingDiagnosticsForDeclaration(declaration: FirDeclaration): Boolean = true
+    protected open fun getDeclarationToAnalyse(declaration: FirDeclaration): FirDeclaration = declaration
 
     private inline fun <R> withDeclaration(declaration: FirDeclaration, block: () -> R): R {
         val existingContext = context
-        context = context.addDeclaration(declaration)
+        context = context.addDeclaration(getDeclarationToAnalyse(declaration))
         try {
             return block()
         } finally {

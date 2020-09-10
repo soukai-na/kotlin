@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.idea.caches.project.IdeaModuleInfo
 import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.FirTowerDataContextCollector
-import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.PsiToFirCache
+import org.jetbrains.kotlin.idea.fir.low.level.api.file.structure.FileStructureCache
 import org.jetbrains.kotlin.idea.fir.low.level.api.providers.FirIdeProvider
 import org.jetbrains.kotlin.idea.fir.low.level.api.sessions.FirIdeCurrentModuleSourcesSession
 import org.jetbrains.kotlin.idea.fir.low.level.api.sessions.FirIdeDependentModulesSourcesSession
@@ -29,7 +29,10 @@ internal class FirModuleResolveStateForCompletion(
     override val dependentModulesSourcesSession: FirIdeDependentModulesSourcesSession get() = originalState.dependentModulesSourcesSession
     override val librariesSession: FirIdeLibrariesSession get() = originalState.librariesSession
 
-    private val psiToFirCache = PsiToFirCache(originalState.currentModuleSourcesSession.cache)
+    private val fileStructureCache = FileStructureCache(
+        originalState.firFileBuilder,
+        originalState.firLazyDeclarationResolver
+    )
 
     override fun getSessionFor(moduleInfo: IdeaModuleInfo): FirSession =
         originalState.getSessionFor(moduleInfo)
@@ -39,19 +42,20 @@ internal class FirModuleResolveStateForCompletion(
         return originalState.elementBuilder.getOrBuildFirFor(
             element,
             originalState.currentModuleSourcesSession.cache,
-            psiToFirCache,
-            toPhase
+            fileStructureCache,
         )
     }
 
     override fun recordPsiToFirMappingsForCompletionFrom(fir: FirDeclaration, firFile: FirFile, ktFile: KtFile) {
-        psiToFirCache.recordElementsForCompletionFrom(fir, firFile, ktFile)
+//        fileStructureCache.recordElementsForCompletionFrom(fir, firFile, ktFile)
+        TODO()
     }
 
     override fun getCachedMappingForCompletion(element: KtElement): FirElement? {
-        psiToFirCache.getCachedMapping(element)?.let { return it }
-        originalState.psiToFirCache.getCachedMapping(element)?.let { return it }
-        return null
+        TODO()
+//        fileStructureCache.getCachedMapping(element)?.let { return it }
+//        originalState.psiToFirCache.getCachedMapping(element)?.let { return it }
+//        return null
     }
 
     override fun <D : FirDeclaration> resolvedFirToPhase(declaration: D, toPhase: FirResolvePhase): D {

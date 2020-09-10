@@ -9,7 +9,7 @@ dependencies {
     compile(project(":compiler:ir.psi2ir"))
     compile(project(":core:descriptors.jvm"))
     compile(project(":core:metadata.jvm"))
-    api(project(":core:deserialization.common.jvm"))
+    implementation(project(":core:deserialization.common.jvm"))
     compile(project(":compiler:frontend.java"))
 }
 

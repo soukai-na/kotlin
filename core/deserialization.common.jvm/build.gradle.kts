@@ -9,6 +9,7 @@ javaHome = rootProject.extra["JDK_16"] as String
 dependencies {
     api(project(":core:metadata.jvm"))
     api(project(":core:deserialization.common"))
+    implementation(project(":core:compiler.common.jvm"))
 }
 
 sourceSets {

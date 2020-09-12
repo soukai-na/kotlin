@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.resolve.providers.FirProvider
 import org.jetbrains.kotlin.idea.caches.project.IdeaModuleInfo
 import org.jetbrains.kotlin.idea.caches.project.getModuleInfo
 import org.jetbrains.kotlin.idea.fir.low.level.api.diagnostics.DiagnosticsCollector
@@ -47,16 +48,13 @@ abstract class FirModuleResolveState {
     // todo temporary, used only in completion
     abstract fun recordPsiToFirMappingsForCompletionFrom(fir: FirDeclaration, firFile: FirFile, ktFile: KtFile)
 
-    // todo temporary, used only in completion
-    abstract fun getCachedMappingForCompletion(element: KtElement): FirElement?
-
     abstract fun <D : FirDeclaration> resolvedFirToPhase(declaration: D, toPhase: FirResolvePhase): D
 
     // todo temporary, used only in completion
-    internal abstract fun lazyResolveDeclarationForCompletion(
+    abstract fun lazyResolveDeclarationForCompletion(
         firFunction: FirDeclaration,
         containerFirFile: FirFile,
-        firIdeProvider: FirIdeProvider,
+        firIdeProvider: FirProvider,
         toPhase: FirResolvePhase,
         towerDataContextCollector: FirTowerDataContextCollector
     )
@@ -106,13 +104,10 @@ internal class FirModuleResolveStateImpl(
         return declaration
     }
 
-    override fun getCachedMappingForCompletion(element: KtElement): FirElement? =
-        TODO()
-
     override fun lazyResolveDeclarationForCompletion(
         firFunction: FirDeclaration,
         containerFirFile: FirFile,
-        firIdeProvider: FirIdeProvider,
+        firIdeProvider: FirProvider,
         toPhase: FirResolvePhase,
         towerDataContextCollector: FirTowerDataContextCollector
     ) {

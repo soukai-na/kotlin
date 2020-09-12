@@ -27,14 +27,16 @@ internal fun KtDeclaration.findNonLocalFirDeclaration(
         this is KtClassOrObject -> findFir(provider)
         this is KtNamedDeclaration && (this is KtProperty || this is KtNamedFunction) -> {
             val containerClass = containingClassOrObject
-            if (containerClass != null) {
+            val declarations = if (containerClass != null) {
                 val containerClassFir = containerClass.findFir(provider)
-                containerClassFir.declarations.first { it.psi === this }
+                containerClassFir.declarations
             } else {
                 val ktFile = containingKtFile
                 val firFile = firFileBuilder.buildRawFirFileWithCaching(ktFile, moduleFileCache)
-                firFile.declarations.first { it.psi === this }
+                firFile.declarations
             }
+            val original = originalDeclaration
+            declarations.first { it.psi === this || it.psi == original }
         }
         this is KtConstructor<*> -> {
             val containerClassFir = containingClassOrObject?.findFir(provider)
@@ -45,6 +47,11 @@ internal fun KtDeclaration.findNonLocalFirDeclaration(
         else -> error("Invalid container $this::class")
     }
 }
+
+val ORIGINAL_DECLARATION_KEY = com.intellij.openapi.util.Key<KtDeclaration>("ORIGINAL_DECLARATION_KEY")
+
+var KtDeclaration.originalDeclaration by UserDataProperty(ORIGINAL_DECLARATION_KEY)
+
 
 private fun KtClassOrObject.findFir(provider: FirProvider): FirRegularClass {
     val classId = classIdIfNonLocal()

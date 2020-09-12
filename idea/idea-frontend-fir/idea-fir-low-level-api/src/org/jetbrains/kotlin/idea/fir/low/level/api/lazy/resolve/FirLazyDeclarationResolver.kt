@@ -39,7 +39,7 @@ internal class FirLazyDeclarationResolver(
         val firFile = declaration.getContainingFile()
             ?: error("FirFile was not found for\n${declaration.render()}")
         val provider = firFile.session.firIdeProvider
-        val fromPhase = if (reresolveFile) declaration.resolvePhase else firFile.resolvePhase
+        val fromPhase = if (reresolveFile) declaration.resolvePhase else minOf(firFile.resolvePhase, declaration.resolvePhase)
         if (checkPCE) {
             firFileBuilder.runCustomResolveWithPCECheck(firFile, moduleFileCache) {
                 runLazyResolveWithoutLock(
@@ -81,7 +81,7 @@ internal class FirLazyDeclarationResolver(
         towerDataContextCollector: FirTowerDataContextCollector? = null,
         checkPCE: Boolean,
     ) {
-        if (firDeclarationToResolve.resolvePhase >= toPhase) return
+        if (fromPhase >= toPhase) return
         val nonLazyPhase = minOf(toPhase, FirResolvePhase.DECLARATIONS)
         if (fromPhase < nonLazyPhase) {
             firFileBuilder.runResolveWithoutLock(
@@ -132,7 +132,7 @@ internal class FirLazyDeclarationResolver(
         val transformer = FirDesignatedBodyResolveTransformerForIDE(
             designation.iterator(), containerFirFile.session,
             scopeSession,
-            implicitTypeOnly = toPhase == FirResolvePhase.IMPLICIT_TYPES_BODY_RESOLVE,
+            toPhase,
             towerDataContextCollector
         )
         executeWithoutPCE {

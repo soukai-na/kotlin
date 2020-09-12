@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.psi.KtFile
  * Tested in OutOfBlockModificationTestGenerated
  */
 // FIX ME WHEN BUNCH 193 REMOVED
-class KotlinCodeBlockModificationListener(project: Project) : KotlinCodeBlockModificationListenerCompat(project) {
+open class KotlinCodeBlockModificationListener(project: Project) : KotlinCodeBlockModificationListenerCompat(project) {
 
     init {
         init(

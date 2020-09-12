@@ -52,6 +52,8 @@ abstract class KotlinCodeBlockModificationListenerCompat(protected val project: 
 
     internal val perModuleOutOfCodeBlockTrackerUpdater = KotlinModuleOutOfCodeBlockModificationTracker.Updater(project)
 
+    protected open fun supportInBlockModificationsIn(declaration: KtDeclaration): Boolean = true
+
     protected fun init(
         treeAspect: TreeAspect,
         incOCBCounter: (KtFile) -> Unit,
@@ -82,7 +84,7 @@ abstract class KotlinCodeBlockModificationListenerCompat(protected val project: 
                     if (isFormattingChange(changeSet) || isCommentChange(changeSet)) return
                 }
 
-                val inBlockElements = inBlockModifications(changedElements)
+                val inBlockElements = inBlockModifications(changedElements, ::supportInBlockModificationsIn)
 
                 val physical = ktFile.isPhysical
                 if (inBlockElements.isEmpty()) {
@@ -136,12 +138,16 @@ abstract class KotlinCodeBlockModificationListenerCompat(protected val project: 
             tracker.incModificationCount()
         }
 
-        private fun inBlockModifications(elements: Array<ASTNode>): List<KtElement> {
+        private fun inBlockModifications(
+            elements: Array<ASTNode>,
+            supportInBlockModificationsIn: (KtDeclaration) -> Boolean
+        ): List<KtElement> {
             // When a code fragment is reparsed, Intellij doesn't do an AST diff and considers the entire
             // contents to be replaced, which is represented in a POM event as an empty list of changed elements
 
             return elements.map { element ->
-                val modificationScope = getInsideCodeBlockModificationScope(element.psi) ?: return emptyList()
+                val modificationScope = getInsideCodeBlockModificationScope(element.psi, supportInBlockModificationsIn)
+                    ?: return emptyList()
                 modificationScope.blockDeclaration
             }
         }
@@ -179,7 +185,10 @@ abstract class KotlinCodeBlockModificationListenerCompat(protected val project: 
             return getInsideCodeBlockModificationScope(element)?.blockDeclaration ?: null
         }
 
-        fun getInsideCodeBlockModificationScope(element: PsiElement): BlockModificationScopeElement? {
+        fun getInsideCodeBlockModificationScope(
+            element: PsiElement,
+            supportInBlockModificationsIn: (KtDeclaration) -> Boolean = { true },
+        ): BlockModificationScopeElement? {
             val lambda = element.getTopmostParentOfType<KtLambdaExpression>()
             if (lambda is KtLambdaExpression) {
                 lambda.getTopmostParentOfType<KtSuperTypeCallEntry>()?.getTopmostParentOfType<KtClassOrObject>()?.let {
@@ -193,6 +202,8 @@ abstract class KotlinCodeBlockModificationListenerCompat(protected val project: 
 
             // should not be local declaration
             if (KtPsiUtil.isLocal(blockDeclaration))
+                return null
+            if (!supportInBlockModificationsIn(blockDeclaration))
                 return null
 
             when (blockDeclaration) {

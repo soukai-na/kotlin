@@ -46,6 +46,9 @@ internal class FirModuleResolveStateForCompletion(
         )
     }
 
+    override fun getFirFile(ktFile: KtFile): FirFile =
+        originalState.getFirFile(ktFile)
+
     override fun recordPsiToFirMappingsForCompletionFrom(fir: FirDeclaration, firFile: FirFile, ktFile: KtFile) {
 //        fileStructureCache.recordElementsForCompletionFrom(fir, firFile, ktFile)
         TODO()

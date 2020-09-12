@@ -116,7 +116,7 @@ internal class FileStructure(
             val firFile = firFileBuilder.getFirFileResolvedToPhaseWithCaching(
                 container,
                 moduleFileCache,
-                FirResolvePhase.BODY_RESOLVE,
+                FirResolvePhase.IMPORTS,
                 checkPCE = true
             )
             FileWithoutDeclarationsFileStructureElement(

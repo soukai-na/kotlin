@@ -27,7 +27,12 @@ internal abstract class AbstractFirIdeDiagnosticsCollector(
     returnTypeCalculator = createReturnTypeCalculatorForIDE(session, ScopeSession())
 ) {
     init {
-        registerAllComponents()
+        initializeComponents(
+            DeclarationCheckersDiagnosticComponent(this),
+            ExpressionCheckersDiagnosticComponent(this),
+            ErrorNodeDiagnosticCollectorComponent(this),
+            ControlFlowAnalysisDiagnosticComponent(this),
+        )
     }
 
     protected abstract fun onDiagnostic(diagnostic: Diagnostic)
@@ -41,7 +46,11 @@ internal abstract class AbstractFirIdeDiagnosticsCollector(
         }
     }
 
-    private lateinit var reporter: Reporter
+    override lateinit var reporter: DiagnosticReporter
+
+    override fun beforeCollecting() {
+        checkCanceled()
+    }
 
     override fun initializeCollector() {
         reporter = Reporter()

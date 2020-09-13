@@ -84,8 +84,7 @@ internal class FirModuleResolveStateImpl(
         diagnosticsCollector.collectDiagnosticsForFile(ktFile)
 
     override fun recordPsiToFirMappingsForCompletionFrom(fir: FirDeclaration, firFile: FirFile, ktFile: KtFile) {
-        TODO()
-//        psiToFirCache.recordElementsForCompletionFrom(fir, firFile, ktFile)
+        error("Should be called only from FirModuleResolveStateForCompletion")
     }
 
     override fun <D : FirDeclaration> resolvedFirToPhase(declaration: D, toPhase: FirResolvePhase): D {

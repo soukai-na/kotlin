@@ -176,7 +176,8 @@ class UnsignedTypeGenerator(val type: UnsignedType, out: PrintWriter) : BuiltIns
 
         fun generateShiftOperator(name: String, implementation: String = name) {
             val doc = GeneratePrimitives.shiftOperators[implementation]!!
-            out.println("    /** $doc */")
+            val detail = GeneratePrimitives.shiftOperatorsDocDetail(type.asSigned).replaceIndent("     ")
+            out.println("    /**\n     * $doc\n     *\n$detail\n     */")
             out.println("    @kotlin.internal.InlineOnly")
             out.println("    public inline infix fun $name(bitCount: Int): $className = $className(data $implementation bitCount)")
         }

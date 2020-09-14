@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.idea.fir.low.level.api.FirModuleResolveState
 import org.jetbrains.kotlin.idea.fir.low.level.api.LowLevelFirApiFacade
-import org.jetbrains.kotlin.idea.fir.low.level.api.firTransformerProvider
 import org.jetbrains.kotlin.idea.frontend.api.KtAnalysisSession
 import org.jetbrains.kotlin.idea.frontend.api.ValidityToken
 import org.jetbrains.kotlin.idea.frontend.api.ValidityTokenOwner
@@ -57,7 +56,8 @@ internal class KtFirScopeProvider(
             check(classSymbol is KtFirClassOrObjectSymbol)
             val firScope =
                 classSymbol.firRef.withFir(FirResolvePhase.SUPER_TYPES) { fir ->
-                    fir.unsubstitutedScope(fir.session, fir.session.firTransformerProvider.getScopeSession())
+                    val firSession = fir.session
+                    fir.unsubstitutedScope(firSession, firResolveState.firTransformerProvider.getScopeSession(firSession))
                 }.also(firScopeStorage::register)
             KtFirMemberScope(classSymbol, firScope, token, builder)
         }
@@ -90,7 +90,8 @@ internal class KtFirScopeProvider(
     override fun getTypeScope(type: KtType): KtScope? {
         check(type is KtFirType) { "KtFirScopeProvider can only work with KtFirType, but ${type::class} was provided" }
         val firSession = firResolveState.rootModuleSession
-        val firTypeScope = type.coneType.scope(firSession, firSession.firTransformerProvider.getScopeSession()) ?: return null
+        val firTypeScope = type.coneType.scope(firSession, firResolveState.firTransformerProvider.getScopeSession(firSession))
+            ?: return null
         return convertToKtScope(firTypeScope)
     }
 

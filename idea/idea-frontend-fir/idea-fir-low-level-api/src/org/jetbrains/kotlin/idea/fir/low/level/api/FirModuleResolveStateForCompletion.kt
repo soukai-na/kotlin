@@ -23,7 +23,7 @@ internal class FirModuleResolveStateForCompletion(
 ) : FirModuleResolveState() {
     override val moduleInfo: IdeaModuleInfo get() = originalState.moduleInfo
     override val rootModuleSession get() = originalState.rootModuleSession
-
+    override val firTransformerProvider: FirTransformerProvider get() = originalState.firTransformerProvider
     private val fileStructureCache = originalState.fileStructureCache
 
     private val completionMapping = mutableMapOf<KtElement, FirElement>()

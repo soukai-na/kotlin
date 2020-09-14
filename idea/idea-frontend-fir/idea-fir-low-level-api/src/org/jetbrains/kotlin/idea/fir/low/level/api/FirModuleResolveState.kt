@@ -29,6 +29,8 @@ abstract class FirModuleResolveState {
     abstract val moduleInfo: IdeaModuleInfo
     abstract val rootModuleSession: FirSession
 
+    abstract val firTransformerProvider: FirTransformerProvider
+
     abstract fun getSessionFor(moduleInfo: IdeaModuleInfo): FirSession
 
     abstract fun getOrBuildFirFor(element: KtElement, toPhase: FirResolvePhase): FirElement
@@ -63,7 +65,7 @@ internal class FirModuleResolveStateImpl(
     val firLazyDeclarationResolver: FirLazyDeclarationResolver,
 ) : FirModuleResolveState() {
     override val rootModuleSession: FirIdeSourcesSession get() = sessionProvider.rootModuleSession
-
+    override val firTransformerProvider: FirTransformerProvider get() = firFileBuilder.firPhaseRunner.transformerProvider
     val fileStructureCache = FileStructureCache(firFileBuilder, firLazyDeclarationResolver)
     val elementBuilder = FirElementBuilder()
     private val diagnosticsCollector = DiagnosticsCollector(fileStructureCache, rootModuleSession.cache)

@@ -190,6 +190,5 @@ internal object FirIdeSessionFactory {
 
     private fun FirIdeSession.registerIdeComponents() {
         register(IdeSessionComponents::class, IdeSessionComponents.create(this))
-        register(FirTransformerProvider::class, FirTransformerProvider(this))
     }
 }

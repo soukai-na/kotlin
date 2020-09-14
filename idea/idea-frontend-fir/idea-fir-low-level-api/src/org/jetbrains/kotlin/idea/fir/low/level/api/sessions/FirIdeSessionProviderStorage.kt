@@ -9,11 +9,13 @@ import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.fir.BuiltinTypes
 import org.jetbrains.kotlin.idea.caches.project.ModuleSourceInfo
 import org.jetbrains.kotlin.idea.fir.low.level.api.FirPhaseRunner
+import org.jetbrains.kotlin.idea.fir.low.level.api.FirTransformerProvider
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.executeWithoutPCE
 
 internal class FirIdeSessionProviderStorage(private val project: Project) {
     fun getSessionProvider(rootModule: ModuleSourceInfo): FirIdeSessionProvider {
-        val firPhaseRunner = FirPhaseRunner()
+        val transformerProvider = FirTransformerProvider()
+        val firPhaseRunner = FirPhaseRunner(transformerProvider)
         val builtinTypes = BuiltinTypes()
         val builtinsAndCloneableSession = FirIdeSessionFactory.createBuiltinsAndCloneableSession(project, builtinTypes)
         val sessions = mutableMapOf<ModuleSourceInfo, FirIdeSourcesSession>()

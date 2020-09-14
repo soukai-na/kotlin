@@ -61,7 +61,7 @@ class Fir2IrTypeConverter(
     fun FirTypeRef.toIrType(typeContext: ConversionTypeContext = ConversionTypeContext.DEFAULT): IrType {
         return when (this) {
             !is FirResolvedTypeRef -> createErrorType()
-            !is FirImplicitBuiltinTypeRef -> type.toIrType(typeContext, annotations)
+            !is FirImplicitBuiltinTypeRef -> type.toIrType(typeContext, annotations = annotations)
             is FirImplicitNothingTypeRef -> irBuiltIns.nothingType
             is FirImplicitUnitTypeRef -> irBuiltIns.unitType
             is FirImplicitBooleanTypeRef -> irBuiltIns.booleanType
@@ -70,12 +70,13 @@ class Fir2IrTypeConverter(
             is FirImplicitIntTypeRef -> irBuiltIns.intType
             is FirImplicitNullableAnyTypeRef -> irBuiltIns.anyNType
             is FirImplicitNullableNothingTypeRef -> irBuiltIns.nothingNType
-            else -> type.toIrType(typeContext, annotations)
+            else -> type.toIrType(typeContext, annotations = annotations)
         }
     }
 
     fun ConeKotlinType.toIrType(
         typeContext: ConversionTypeContext = ConversionTypeContext.DEFAULT,
+        visitedCapturedTypes: MutableSet<ConeCapturedType> = mutableSetOf(),
         annotations: List<FirAnnotationCall> = emptyList()
     ): IrType {
         return when (this) {
@@ -92,42 +93,50 @@ class Fir2IrTypeConverter(
                 typeAnnotations += with(annotationGenerator) { annotations.toIrAnnotations() }
                 IrSimpleTypeImpl(
                     irSymbol, !typeContext.definitelyNotNull && this.isMarkedNullable,
-                    fullyExpandedType(session).typeArguments.map { it.toIrTypeArgument(typeContext) },
+                    fullyExpandedType(session).typeArguments.map { it.toIrTypeArgument(typeContext, visitedCapturedTypes) },
                     typeAnnotations
                 )
             }
             is ConeFlexibleType -> {
                 // TODO: yet we take more general type. Not quite sure it's Ok
-                upperBound.toIrType(typeContext)
+                upperBound.toIrType(typeContext, visitedCapturedTypes)
             }
             is ConeCapturedType -> {
-                lowerType?.toIrType(typeContext) ?: constructor.supertypes!!.first().toIrType(typeContext)
+                visitedCapturedTypes += this
+                lowerType?.toIrType(typeContext, visitedCapturedTypes)
+                    ?: constructor.supertypes!!.first().toIrType(typeContext, visitedCapturedTypes)
             }
             is ConeDefinitelyNotNullType -> {
-                original.toIrType(typeContext.definitelyNotNull())
+                original.toIrType(typeContext.definitelyNotNull(), visitedCapturedTypes)
             }
             is ConeIntersectionType -> {
                 // TODO: add intersectionTypeApproximation
-                intersectedTypes.first().toIrType(typeContext)
+                intersectedTypes.first().toIrType(typeContext, visitedCapturedTypes)
             }
             is ConeStubType -> createErrorType()
             is ConeIntegerLiteralType -> createErrorType()
         }
     }
 
-    private fun ConeTypeProjection.toIrTypeArgument(typeContext: ConversionTypeContext): IrTypeArgument {
+    private fun ConeTypeProjection.toIrTypeArgument(
+        typeContext: ConversionTypeContext,
+        visitedCapturedTypes: MutableSet<ConeCapturedType>
+    ): IrTypeArgument {
+        if (this is ConeKotlinTypeProjection && type in visitedCapturedTypes) {
+            return IrStarProjectionImpl
+        }
         return when (this) {
             ConeStarProjection -> IrStarProjectionImpl
             is ConeKotlinTypeProjectionIn -> {
-                val irType = this.type.toIrType(typeContext)
+                val irType = type.toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.IN_VARIANCE)
             }
             is ConeKotlinTypeProjectionOut -> {
-                val irType = this.type.toIrType(typeContext)
+                val irType = type.toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.OUT_VARIANCE)
             }
             is ConeKotlinType -> {
-                val irType = toIrType(typeContext)
+                val irType = toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.INVARIANT)
             }
         }

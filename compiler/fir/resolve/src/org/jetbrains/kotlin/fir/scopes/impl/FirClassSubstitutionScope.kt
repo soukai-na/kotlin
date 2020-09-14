@@ -131,15 +131,11 @@ class FirClassSubstitutionScope(
     }
 
     private fun ConeKotlinType.approximateCapturedCovariant(): ConeKotlinType {
-        return session.inferenceComponents.approximator.approximateToSuperType(
-            this, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
-        ) as? ConeKotlinType ?: this
+        return this
     }
 
     private fun ConeKotlinType.approximateCapturedContravariant(): ConeKotlinType {
-        return session.inferenceComponents.approximator.approximateToSubType(
-            this, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
-        ) as? ConeKotlinType ?: this
+        return this
     }
 
     private fun createFakeOverrideFunction(original: FirFunctionSymbol<*>): FirFunctionSymbol<*> {

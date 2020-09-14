@@ -268,6 +268,9 @@ private fun Candidate.captureTypeFromExpressionOrNull(argumentType: ConeKotlinTy
     if (argumentType is ConeFlexibleType) {
         return captureTypeFromExpressionOrNull(argumentType.lowerBound, context)
     }
+    if (argumentType is ConeCapturedType) {
+        return captureTypeFromExpressionOrNull(argumentType.constructor.supertypes!!.first(), context)
+    }
 
     if (argumentType !is ConeClassLikeType) return null
 

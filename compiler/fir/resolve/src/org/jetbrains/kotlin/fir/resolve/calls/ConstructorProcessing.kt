@@ -13,6 +13,8 @@ import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
+import org.jetbrains.kotlin.fir.resolve.transformers.ensureResolved
+import org.jetbrains.kotlin.fir.resolve.transformers.ensureResolvedForCalls
 import org.jetbrains.kotlin.fir.scopes.FirScope
 import org.jetbrains.kotlin.fir.scopes.impl.FirClassSubstitutionScope
 import org.jetbrains.kotlin.fir.scopes.impl.withReplacedConeType
@@ -39,7 +41,7 @@ internal fun FirScope.processConstructorsByName(
     if (classifierInfo != null) {
         val (matchedClassifierSymbol, substitutor) = classifierInfo
         val matchedClassSymbol = matchedClassifierSymbol as? FirClassLikeSymbol<*>
-
+        matchedClassSymbol?.ensureResolved(FirResolvePhase.BODY_RESOLVE, session)
         processConstructors(
             matchedClassSymbol,
             substitutor,

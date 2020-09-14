@@ -21,43 +21,8 @@ internal class DiagnosticsCollector(
             .getStructureElementFor(element)
             .diagnostics.diagnosticsFor(element)
 
-    fun collectDiagnosticsForFile(ktFile: KtFile): Collection<Diagnostic> {
-        TODO("Not supported")
-    }
+    fun collectDiagnosticsForFile(ktFile: KtFile): Collection<Diagnostic> =
+        fileStructureCache
+            .getFileStructure(ktFile, cache)
+            .getAllDiagnosticsForFile()
 }
-
-//private class DiagnosticsForFile(
-//    private val ktFile: KtFile,
-//    private val firFile: FirFile,
-//    private val elementBuilder: FirElementBuilder,
-//    private val fileStructureCache: FileStructureCache,
-//    private val cache: ModuleFileCache,
-//) {
-//    private val declarationToDiagnostics = ConcurrentHashMap<KtAnnotated, Map<KtElement, List<Diagnostic>>>()
-//
-//    fun collectDiagnosticsForFile(): Collection<Diagnostic> =
-//        FirIdeFileDiagnosticsCollector.collectForFile(firFile)
-//
-//    fun getDiagnosticsFor(element: KtElement): List<Diagnostic> {
-//        TODO("Not supported yet")
-////        val containerDeclaration = element as? KtDeclaration
-////            ?: element.containingDeclarationForPseudocode
-////            ?: ktFile
-////        return declarationToDiagnostics.computeIfAbsent(containerDeclaration) {
-////            when (val fir = elementBuilder.getOrBuildFirFor(containerDeclaration, cache, psiToFirCache, FirResolvePhase.BODY_RESOLVE)) {
-////                is FirDeclaration -> {
-////                    FirIdeDiagnosticsCollector(fir, fir.session).let { collector ->
-////                        collector.collectDiagnostics(firFile)
-////                        collector.elementToDiagnostic
-////                    }
-////                    emptyMap()
-////                }
-////                is FirDiagnosticHolder -> {
-////                    emptyMap() //TODO take diagnostic from FirDiagnosticHolder
-////                }
-////                else -> error("KtDeclaration should be mapped to FirDeclaration")
-////            }
-////
-////        }.getOrDefault(element, emptyList())
-//    }
-//}

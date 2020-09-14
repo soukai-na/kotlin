@@ -33,21 +33,16 @@ class KotlinHighLevelDiagnosticHighlightingPass(
     private val diagnosticInfos = mutableListOf<HighlightInfo>()
 
     override fun doCollectInformation(progress: ProgressIndicator) = analyze(ktFile) {
-        ktFile.accept(object : PsiElementVisitor() {
-            override fun visitElement(element: PsiElement) {
-                (element as? KtElement)?.getDiagnostics()?.forEach { diagnostic ->
-                    if (!diagnostic.isValid) return@forEach
-                    diagnostic.textRanges.forEach { range ->
-                        HighlightInfo.newHighlightInfo(HighlightInfoType.ERROR/*TODO*/)
-                            .descriptionAndTooltip(Diagnostic2Annotation.getMessage(diagnostic, IdeErrorMessages::render))
-                            .range(range)
-                            .create()
-                            ?.let(diagnosticInfos::add)
-                    }
-                }
-                element.acceptChildren(this)
+        ktFile.collectDiagnosticsForFile().forEach { diagnostic ->
+            if (!diagnostic.isValid) return@forEach
+            diagnostic.textRanges.forEach { range ->
+                HighlightInfo.newHighlightInfo(HighlightInfoType.ERROR/*TODO*/)
+                    .descriptionAndTooltip(Diagnostic2Annotation.getMessage(diagnostic, IdeErrorMessages::render))
+                    .range(range)
+                    .create()
+                    ?.let(diagnosticInfos::add)
             }
-        })
+        }
     }
 
 

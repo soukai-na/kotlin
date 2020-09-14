@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.idea.fir.low.level.api.file.structure
 
+import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.idea.fir.low.level.api.element.builder.getNonLocalContainingOrThisDeclaration
 import org.jetbrains.kotlin.idea.fir.low.level.api.file.builder.FirFileBuilder
@@ -16,10 +17,13 @@ import org.jetbrains.kotlin.idea.fir.low.level.api.util.hasExplicitTypeOrUnit
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.replaceFirst
 import org.jetbrains.kotlin.idea.util.getElementTextInContext
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
+import org.jetbrains.kotlin.psi.psiUtil.forEachDescendantOfType
 import java.util.concurrent.ConcurrentHashMap
 
 
 internal class FileStructure(
+    private val ktFile: KtFile,
     private val firFile: FirFile,
     private val firLazyDeclarationResolver: FirLazyDeclarationResolver,
     private val firFileBuilder: FirFileBuilder,
@@ -31,17 +35,39 @@ internal class FileStructure(
 
     fun getStructureElementFor(element: KtElement): FileStructureElement {
         val container: KtAnnotated = element.getNonLocalContainingOrThisDeclaration() ?: element.containingKtFile
-        val structureElement = structureElements.compute(container) { _, structureElement ->
+        return getStructureElementForDeclaration(container)
+    }
+
+    private fun getStructureElementForDeclaration(declaration: KtAnnotated): FileStructureElement {
+        val structureElement = structureElements.compute(declaration) { _, structureElement ->
             when {
-                structureElement == null -> createStructureElement(container)
+                structureElement == null -> createStructureElement(declaration)
                 structureElement is WithInBlockModificationFileStructureElement && !structureElement.isUpToDate() -> {
-                    createMappingsCopy(structureElement, container as KtNamedFunction)
+                    createMappingsCopy(structureElement, declaration as KtNamedFunction)
                 }
                 else -> structureElement
             }
         }
         return structureElement
-            ?: error("FileStructureElement for was not defined for \n${container.getElementTextInContext()}")
+            ?: error("FileStructureElement for was not defined for \n${declaration.getElementTextInContext()}")
+    }
+
+    @OptIn(ExperimentalStdlibApi::class)
+    fun getAllDiagnosticsForFile(): Collection<Diagnostic> {
+        val containersForStructureElement = buildList {
+            add(ktFile)
+            ktFile.forEachDescendantOfType<KtDeclaration>(
+                canGoInside = { psi -> psi !is KtFunction && psi !is KtValVarKeywordOwner }
+            ) { declaration ->
+                if (declaration.isStructureElementContainer()) {
+                    add(declaration)
+                }
+            }
+        }
+        val structureElements = containersForStructureElement.map(::getStructureElementFor)
+        return buildList {
+            structureElements.forEach { it.diagnostics.forEach { diagnostics -> addAll(diagnostics) } }
+        }
     }
 
     private fun replaceFunction(from: FirSimpleFunction, to: FirSimpleFunction) {
@@ -127,6 +153,13 @@ internal class FileStructure(
         is KtDeclaration -> createDeclarationStructure(container)
         else -> error("Invalid container $container")
     }
+}
+
+private fun KtDeclaration.isStructureElementContainer(): Boolean {
+    if (this !is KtClassOrObject && this !is KtDeclarationWithBody && this !is KtProperty && this !is KtTypeAlias) return false
+    if (this is KtEnumEntry) return false
+    if (containingClassOrObject is KtEnumEntry) return false
+    return !KtPsiUtil.isLocal(this)
 }
 
 

@@ -11,8 +11,6 @@ import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirSimpleFunction
 import org.jetbrains.kotlin.fir.psi
-import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassifierSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.idea.fir.low.level.api.diagnostics.FirIdeStructureElementDiagnosticsCollector
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.hasExplicitTypeOrUnit
@@ -24,6 +22,8 @@ internal class FileStructureElementDiagnostics(
     private val map: Map<KtElement, List<Diagnostic>>
 ) {
     fun diagnosticsFor(element: KtElement): List<Diagnostic> = map[element] ?: emptyList()
+
+    inline fun forEach(action: (List<Diagnostic>) -> Unit) = map.values.forEach(action)
 }
 
 internal sealed class FileStructureElement {

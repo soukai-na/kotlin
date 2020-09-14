@@ -178,6 +178,7 @@ The Kotlin FIR plugin provides language support in IntelliJ IDEA and Android Stu
 
 
   <extensions defaultExtensionNs="com.intellij">
+    <projectService serviceImplementation="org.jetbrains.kotlin.idea.PluginStartupService"/>
 
     <iconProvider implementation="org.jetbrains.kotlin.idea.KotlinIconProviderBase"/>
 

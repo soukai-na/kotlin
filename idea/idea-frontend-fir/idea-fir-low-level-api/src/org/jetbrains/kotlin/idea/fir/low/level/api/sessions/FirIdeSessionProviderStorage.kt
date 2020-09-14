@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.idea.fir.low.level.api.FirPhaseRunner
 import org.jetbrains.kotlin.idea.fir.low.level.api.util.executeWithoutPCE
 
 internal class FirIdeSessionProviderStorage(private val project: Project) {
-    private val firPhaseRunner = FirPhaseRunner()
-    private val builtinTypes = BuiltinTypes()
-    private val builtinsAndCloneableSession = FirIdeSessionFactory.createBuiltinsAndCloneableSession(project, builtinTypes)
-
     fun getSessionProvider(rootModule: ModuleSourceInfo): FirIdeSessionProvider {
+        val firPhaseRunner = FirPhaseRunner()
+        val builtinTypes = BuiltinTypes()
+        val builtinsAndCloneableSession = FirIdeSessionFactory.createBuiltinsAndCloneableSession(project, builtinTypes)
         val sessions = mutableMapOf<ModuleSourceInfo, FirIdeSourcesSession>()
         val session = executeWithoutPCE {
             FirIdeSessionFactory.createSourcesSession(

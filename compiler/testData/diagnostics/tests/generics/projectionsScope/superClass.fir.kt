@@ -7,6 +7,6 @@ interface Clazz<T> {
 
 fun test(clazz: Clazz<*>) {
     clazz.t checkType { _<Any?>() }
-    clazz.getSuperClass() checkType { _<Clazz<*>>() }
+    clazz.getSuperClass() checkType { <!INAPPLICABLE_CANDIDATE!>_<!><Clazz<*>>() }
     clazz.getSuperClass().t checkType { _<Any?>() }
 }

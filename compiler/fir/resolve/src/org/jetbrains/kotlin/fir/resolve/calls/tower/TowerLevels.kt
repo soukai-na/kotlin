@@ -184,7 +184,6 @@ class ScopeTowerLevel(
         when {
             extensionsOnly && !hasExtensionReceiver() -> false
             !hasConsistentExtensionReceiver(extensionReceiver) -> false
-            scope is FirAbstractImportingScope -> true
             else -> true
         }
 

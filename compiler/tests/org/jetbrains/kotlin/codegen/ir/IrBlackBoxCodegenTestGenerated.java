@@ -5008,6 +5008,11 @@ public class IrBlackBoxCodegenTestGenerated extends AbstractIrBlackBoxCodegenTes
             runTest("compiler/testData/codegen/box/collections/removeClash.kt");
         }
 
+        @TestMetadata("removeOverriddenInJava.kt")
+        public void testRemoveOverriddenInJava() throws Exception {
+            runTest("compiler/testData/codegen/box/collections/removeOverriddenInJava.kt");
+        }
+
         @TestMetadata("strList.kt")
         public void testStrList() throws Exception {
             runTest("compiler/testData/codegen/box/collections/strList.kt");

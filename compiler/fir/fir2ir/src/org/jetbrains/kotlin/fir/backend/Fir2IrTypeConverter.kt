@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.fir.backend
 import org.jetbrains.kotlin.fir.backend.generators.AnnotationGenerator
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
+import org.jetbrains.kotlin.fir.resolve.inference.inferenceComponents
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.StandardClassIds
 import org.jetbrains.kotlin.fir.types.*
@@ -20,6 +21,7 @@ import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.Variance
 
 class Fir2IrTypeConverter(
@@ -122,21 +124,23 @@ class Fir2IrTypeConverter(
         typeContext: ConversionTypeContext,
         visitedCapturedTypes: MutableSet<ConeCapturedType>
     ): IrTypeArgument {
-        if (this is ConeKotlinTypeProjection && type in visitedCapturedTypes) {
-            return IrStarProjectionImpl
-        }
+        val convertedType = if (this is ConeKotlinTypeProjection && type in visitedCapturedTypes) {
+            (session.inferenceComponents.approximator.approximateToSuperType(
+                type, TypeApproximatorConfiguration.SubtypeCapturedTypesApproximation
+            ) as? ConeKotlinType)?.toIrType(typeContext, visitedCapturedTypes)
+        } else null
         return when (this) {
             ConeStarProjection -> IrStarProjectionImpl
             is ConeKotlinTypeProjectionIn -> {
-                val irType = type.toIrType(typeContext, visitedCapturedTypes)
+                val irType = convertedType ?: type.toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.IN_VARIANCE)
             }
             is ConeKotlinTypeProjectionOut -> {
-                val irType = type.toIrType(typeContext, visitedCapturedTypes)
+                val irType = convertedType ?: type.toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.OUT_VARIANCE)
             }
             is ConeKotlinType -> {
-                val irType = toIrType(typeContext, visitedCapturedTypes)
+                val irType = convertedType ?: toIrType(typeContext, visitedCapturedTypes)
                 makeTypeProjection(irType, Variance.INVARIANT)
             }
         }
